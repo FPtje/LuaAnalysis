@@ -1,4 +1,5 @@
 \documentclass[10pt]{article}
+\usepackage{hyperref}
 
 \title{Plan for Automatic Program Analysis project 1}
 \author{Eduard van der Bent \and Frank Dedden \and Wilco Kusee \and Falco Peijnenburg}
@@ -10,7 +11,7 @@
 \maketitle
 
 \section*{Description}
-We will be analysing a Lua program for dead code, ie. code that will never be executed. We won't cover the complete language of Lua, as this is far too much work, however we will at least be supporting the following language features:
+We will be analysing a Lua program for dead code, i.e. code that will never be executed. We will not cover the complete language of Lua, as this is far too much work, however we will at least be supporting the following language features:
 \begin{itemize}
 	\item Conditionals
 	\item Loops
@@ -21,8 +22,10 @@ We will be analysing a Lua program for dead code, ie. code that will never be ex
 Which we can extend with the following:
 \begin{itemize}
 	\item Higher-order functions
-	% Idem
+	\item Unknown functions
 \end{itemize}
-To achieve this, we will first parse a piece of Lua sourcecode. Both the parsing and analysing will be done in Haskell and the Attribute Grammar system. The parser has already been written by Falco Peijnenburg and can be used as is. We will extend upon this to analyse the input code.
+To achieve this, we will first parse a piece of Lua source code. Both the parsing and analysing will be done in Haskell and the uuagc Attribute Grammar system. The parser has already been written by Falco Peijnenburg and can be used as is. We will extend upon this to analyse the input code. The parser can be found here:
+
+\url{https://github.com/FPtje/GLuaParser}
 
 \end{document}
