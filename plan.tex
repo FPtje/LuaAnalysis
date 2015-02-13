@@ -22,7 +22,7 @@ We will be analysing a Lua program for dead code, i.e. code that will never be e
 Which we can extend with the following:
 \begin{itemize}
 	\item Higher-order functions
-	\item Unknown functions (functions in different files)
+	\item Unknown functions (functions defined in C)
 \end{itemize}
 To achieve this, we will first parse a piece of Lua source code. Both the parsing and analysing will be done in Haskell and the uuagc Attribute Grammar system. The parser has already been written by Falco Peijnenburg and can be used as is. We will extend upon this to analyse the input code. The parser can be found here:
 
