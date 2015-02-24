@@ -1,0 +1,131 @@
+module {GLua.AG.AST}{}{}
+
+imports
+{
+import Text.ParserCombinators.UU.BasicInstances
+import GLua.TokenTypes
+}
+
+-- Root of the Abstract Syntax Tree
+data AST          | AST comments :: {[MToken]} chunk :: Block
+
+-- Block of code
+data Block        | Block  stats :: {[MStat]}    ret :: AReturn
+
+data MStat        | MStat    pos :: LineColPos  stat :: Stat
+
+-- Statement
+data Stat         -- ;
+                  | ASemicolon
+                  -- a, b, c = ...
+                  | Def      vars :: {[(PrefixExp, MExpr)]}
+                  -- local a,b,c, ... = ...
+                  | LocDef   vars :: {[(PrefixExp, MExpr)]}
+                  -- Function call
+                  | AFuncCall  fn :: PrefixExp
+                  -- label
+                  | ALabel    lbl :: MToken
+                  -- break
+                  | ABreak
+                  -- continue
+                  | AContinue
+                  -- goto label
+                  | AGoto     lbl :: MToken
+                  -- do block end
+                  | ADo body :: Block
+                  -- while expr do block end
+                  | AWhile   cond :: MExpr      body :: Block
+                  -- repeat block until expr
+                  | ARepeat  body :: Block      cond :: MExpr
+                  -- if exp r then block [elseif expr then block] [else block] end
+                  | AIf      cond :: MExpr      body :: Block     elifs :: {[(MExpr, Block)]} els :: {Maybe Block}
+                  -- for varname = expr, expr, expr? do block end, numeric for
+                  | ANFor    var  :: MToken      val :: MExpr        to :: MExpr step :: MExpr body :: Block
+                  -- for namelist in expr do block end
+                  | AGFor    vars :: {[MToken]} vals :: {[MExpr]}  body :: Block
+                  -- function funcname(parameters) block end
+                  | AFunc    name :: FuncName   args :: {[MToken]} body :: Block
+                  -- local function funcname(parameters) block end
+                  | ALocFunc name :: FuncName   args :: {[MToken]} body :: Block
+
+-- Return [values]
+data AReturn      | AReturn             pos    :: LineColPos values :: {[MExpr]}
+                  | NoReturn
+
+-- Function names
+data FuncName     | FuncName            names  :: {[MToken]}    meta  :: (Maybe MToken) -- name(.name)*(:name)?
+
+-- Prefix expressions (vars or function calls)
+data PrefixExp    | PFVar               name   :: MToken  suffixes  :: {[PFExprSuffix]}
+                  | ExprVar             expr   :: MExpr   suffixes  :: {[PFExprSuffix]} -- (some .. expression)["with suffix"]
+
+-- Suffix of expression: Call(), :MetaCall(), [indexation] or .indexation
+data PFExprSuffix | Call                args   :: Args
+                  | MetaCall            fn     :: MToken     args   :: Args
+                  | ExprIndex           index  :: MExpr
+                  | DotIndex            index  :: MToken
+
+-- Expressions
+data MExpr        | MExpr               pos    :: LineColPos expr   :: Expr
+
+data Expr         | ANil
+                  | AFalse
+                  | ATrue
+                  | ANumber             num    :: String
+                  | AString             str    :: MToken
+                  | AVarArg
+                  | AnonymousFunc       pars   :: {[MToken]} body   :: Block
+                  | APrefixExpr         pexpr  :: PrefixExp
+                  | ATableConstructor   fields :: {[Field]}
+                  | BinOpExpr           op     :: BinOp      left   :: MExpr right :: MExpr
+                  | UnOpExpr            op     :: UnOp       right  :: MExpr
+
+-- arguments of function call: fn(list, args), fn{table, args}, fn"string args"
+data Args         | ListArgs            args   :: {[MExpr]}
+                  | TableArg            arg    :: {[Field]}
+                  | StringArg           arg    :: MToken
+
+
+-- Fields of a table: {[expr] = expr, namedfield = expr, expr}
+data Field        | ExprField          key   :: MExpr  value        :: MExpr
+                  | NamedField         key   :: MToken value        :: MExpr
+                  | UnnamedField       value :: MExpr
+
+
+-- Binary operators
+data BinOp        | APlus
+                  | BinMinus
+                  | AMultiply
+                  | ADivide
+                  | AModulus
+                  | APower
+                  | AConcatenate
+                  | ALT
+                  | ALEQ
+                  | AGT
+                  | AGEQ
+                  | AEq
+                  | ANEq
+                  | AAnd
+                  | AOr
+
+-- Unary operators
+data UnOp         | UnMinus
+                  | ANot
+                  | AHash
+
+deriving AST : Show
+deriving Block : Show
+deriving MStat : Show
+deriving Stat : Show
+deriving AReturn : Show
+deriving FuncName : Show
+deriving PrefixExp : Show
+deriving PFExprSuffix : Show
+deriving MExpr : Show
+deriving Expr : Show
+deriving Args : Show
+deriving Field : Show
+deriving BinOp : Show
+deriving UnOp : Show
+
