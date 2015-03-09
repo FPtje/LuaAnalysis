@@ -11,14 +11,18 @@ include "../../GLua/AG/AST.ag"
 {
 
 data NodeThing = NStat Stat | NReturn AReturn | NExpr MExpr
+	deriving Show
 
 type ANode = LNode NodeThing
 type AEdge = LEdge Bool -- TODO: different label for edges
-type AnalysisGraph = Gr ANode AEdge
+type AnalysisGraph = Gr NodeThing Bool
 
 
 nextUnique :: Int -> (Int, Int)
 nextUnique u = (u+1, u)
+
+getGraph :: AST -> AnalysisGraph
+getGraph a = controlflow_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 0))
 
 }
 
@@ -47,7 +51,7 @@ sem MStatList
                  loc.lastNumber  = @lhs.lastNumber
 
 sem AST |
-	AST lhs.controlflow = @chunk.controlflow
+	AST lhs.controlflow = mkGraph @chunk.nodes @chunk.edges 
 		chunk.number = 1
 
 sem Block | Block lhs.controlflow = @stats.controlflow -- fix return address?
