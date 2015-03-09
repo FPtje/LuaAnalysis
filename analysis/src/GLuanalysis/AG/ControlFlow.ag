@@ -22,7 +22,7 @@ data SStat =
     SBreak |
     SContinue |
     SGoto MToken |
-    -- SDo Block |
+    SDo Block |
 	SWhile MExpr |
     SRepeat MExpr |
     SIf MExpr | --no elif yet
@@ -42,7 +42,7 @@ data Vertex = V SStat
 attr Block MStat Stat MStatList
 	chn number :: Int
 
-attr AST Block MStat Stat
+attr AST Block MStat Stat MStatList
     syn controlflow :: {Gr}
 
 
@@ -56,7 +56,7 @@ sem AST |
 	AST lhs.controlflow =  @chunk.controlflow
 		chunk.number = 1
 
-sem Block | Block lhs.controlflow = [(@lhs.number,(V SSemicolon),[])] -- fix return address?
+sem Block | Block lhs.controlflow = @stats.controlflow -- fix return address?
 
 sem MStat | MStat lhs.controlflow = []
 				  stat.number = @lhs.number
