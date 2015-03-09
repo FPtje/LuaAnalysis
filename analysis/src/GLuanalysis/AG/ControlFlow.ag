@@ -54,12 +54,14 @@ sem MStatList
                  lhs.number      = @tl.number
                  lhs.edges       = @hd.edges ++ if null @tl.nodes then [] else (@hd.lastNumber, @tl.firstNumber, True) : @tl.edges
                  loc.firstNumber = @hd.firstNumber
-                 loc.lastNumber  = @tl.lastNumber
+
+                 -- Use the last number of the head when last element
+                 loc.lastNumber  = if @tl.lastNumber == -1 then @hd.lastNumber else @tl.lastNumber
     | Nil        lhs.controlflow = empty
                  lhs.number      = @lhs.number
                  lhs.nodes       = []
                  loc.firstNumber = @lhs.firstNumber
-                 loc.lastNumber  = @lhs.lastNumber
+                 loc.lastNumber  = -1
 
 sem ElseIf
     | Tuple      loc.number      = @lhs.number + 1
@@ -91,24 +93,23 @@ sem Block | Block lhs.controlflow = @stats.controlflow -- fix return address?
                   lhs.edges       = @stats.edges
                   lhs.number      = @ret.number + 1
                   ret.number      = @stats.number
-                  lhs.firstNumber = fst . head $ @loc.nodes
-                  lhs.lastNumber  = fst . last $ @loc.nodes
+                  lhs.firstNumber = @stats.firstNumber
+                  lhs.lastNumber  = @stats.lastNumber
 
 sem MStat | MStat lhs.controlflow = @stat.controlflow
 
 
 sem Stat    | ASemicolon lhs.controlflow = empty
-                         --lhs.number     = @lhs.number
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
-            | Def        lhs.controlflow = empty
 
-                         lhs.number = @lhs.number + 1
+            | Def        lhs.controlflow = empty
+                         lhs.number      = @lhs.number + 1
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
-            | LocDef     lhs.controlflow = empty
 
+            | LocDef     lhs.controlflow = empty
                          lhs.number = @lhs.number + 1
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
