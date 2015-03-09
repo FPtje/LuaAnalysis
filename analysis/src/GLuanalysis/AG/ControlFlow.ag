@@ -110,19 +110,19 @@ sem Stat    | ASemicolon lhs.controlflow = empty
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
 
             | LocDef     lhs.controlflow = empty
-                         lhs.number = @lhs.number + 1
+                         lhs.number      = @lhs.number + 1
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
+
             | AFuncCall  lhs.controlflow = empty
-
-                         lhs.number = @lhs.number + 1
-                         loc.firstNumber = @lhs.number-- TODO: proper first and last
-                         loc.lastNumber  = @lhs.number-- TODO: proper first and last
+                         lhs.number      = @lhs.number + 1
+                         loc.firstNumber = @lhs.number
+                         loc.lastNumber  = @lhs.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)] -- todo: function calls
-            | ALabel     lhs.controlflow = empty
 
-                         lhs.number = @lhs.number + 1
+            | ALabel     lhs.controlflow = empty
+                         lhs.number      = @lhs.number + 1
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
