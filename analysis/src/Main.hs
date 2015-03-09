@@ -7,6 +7,7 @@ import GLua.Parser
 import GLua.AG.PrettyPrint
 
 import Data.Char
+import Data.List (nub,(\\))
 
 import System.FilePath
 import System.Environment
@@ -41,7 +42,10 @@ run file =do
 		putStrLn . show . getGraph . fst $ ast
 		
 		putStrLn "\nNodes\n"
-		putStrLn . show . getNodes. fst $ ast
+		putStrLn . show . map fst . getNodes. fst $ ast
+		
+		putStrLn "\nDuplicate Nodes\n"
+		putStrLn . show $ (map fst $ getNodes. fst $ ast) \\ (nub . map fst . getNodes. fst $ ast)
 		
 		putStrLn "\nEdges\n"
 		putStrLn . show . getEdges . fst $ ast
