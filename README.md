@@ -8,5 +8,6 @@ git remote add parser git@github.com:FPtje/GLuaParser.git
 
 git fetch parser &&
 git rm -rf analysis/src/GLua &&
-git read-tree --prefix=analysis/src -u parser/master:src
+git read-tree --prefix=analysis/src -u parser/master:src &&
+git commit -m "Merged GLuaParser"
 ```
