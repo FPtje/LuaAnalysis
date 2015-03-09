@@ -5,13 +5,18 @@ imports
 import GLua.AG.AST
 import Data.Graph.Inductive.Graph
 import Data.Graph.Inductive.PatriciaTree
+import qualified GLua.AG.PrettyPrint as PP
 }
 include "../../GLua/AG/AST.ag"
 
 {
 
 data NodeThing = NStat Stat | NReturn AReturn | NExpr MExpr
-    deriving Show
+
+instance Show NodeThing where
+    show (NStat s) = "NStat (" ++ (PP.renderStat s) ++ ")"
+    show (NReturn s) = "NReturn (" ++ (PP.renderAReturn s) ++ ")"
+    show (NExpr s) = "NExpr (" ++ (PP.renderMExpr s) ++ ")"
 
 type ANode = LNode NodeThing
 type AEdge = LEdge Bool -- TODO: different label for edges
