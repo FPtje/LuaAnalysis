@@ -31,7 +31,7 @@ getEdges a = edges_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 0))
 attr Block MStat Stat MStatList AReturn ElseIf ElseIfList Else
 	chn number :: Int
 
-attr AST Block MStat Stat MStatList ElseIf ElseIfList Else
+attr AST Block MStat Stat MStatList ElseIf ElseIfList Else AReturn
     syn controlflow :: {AnalysisGraph}
     syn nodes use {++} {[]} :: {[ANode]}
     syn edges use {++} {[]} :: {[AEdge]}
@@ -39,7 +39,7 @@ attr AST Block MStat Stat MStatList ElseIf ElseIfList Else
     chn firstNumber :: Int
     chn lastNumber  :: Int
 
-attr AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else
+attr AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else AReturn
     syn copy :: self
 
 sem MStatList
@@ -69,14 +69,18 @@ sem Else
     | Just       lhs.controlflow = empty
     | Nothing    lhs.controlflow = empty
 
+sem AReturn
+    | AReturn    lhs.nodes       = [(@lhs.number, NReturn @loc.copy)]
+                 lhs.controlflow = empty
+    | NoReturn   lhs.nodes       = []-- TODO: Return statement
+                 lhs.controlflow = empty
+
 sem AST |
 	AST lhs.controlflow = mkGraph @chunk.nodes @chunk.edges
 		chunk.number = 1
 
 sem Block | Block lhs.controlflow = @stats.controlflow -- fix return address?
-                  loc.nodes       =  @stats.nodes ++ case @ret.copy of
-													 (AReturn _ _) -> [(@ret.number, NReturn @ret.copy)]
-													 (NoReturn) -> [] -- TODO: Return statement
+                  loc.nodes       =  @stats.nodes ++ @ret.nodes
 				  lhs.edges = @stats.edges
 				  lhs.number = @ret.number + 1
 				  ret.number = @stats.number
