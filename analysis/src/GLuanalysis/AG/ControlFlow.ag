@@ -30,7 +30,7 @@ data SStat =
     SGFor [MToken] [MExpr]|
     SFunc FuncName [MToken]|
 	SLocFunc FuncName [MToken]
-	
+
 
 type Gr = [Node]
 type Node = (Key,Vertex,[Key])
@@ -39,21 +39,28 @@ data Vertex = V SStat
 
 }
 
-attr Block MStat Stat
-	inh number :: {Int}
+attr Block MStat Stat MStatList
+	chn number :: Int
 
 attr AST Block MStat Stat
     syn controlflow :: {Gr}
-	
+
+
+
+sem MStatList
+    | Cons       lhs.number = @tl.number + 1
+                 tl.number  = @lhs.number + 1
+    | Nil        lhs.number = @lhs.number
+
 sem AST |
 	AST lhs.controlflow =  @chunk.controlflow
 		chunk.number = 1
-	
+
 sem Block | Block lhs.controlflow = [(@lhs.number,(V SSemicolon),[])] -- fix return address?
 
 sem MStat | MStat lhs.controlflow = []
 				  stat.number = @lhs.number
-				  
+
 sem Stat    | ASemicolon lhs.controlflow = []
 			| Def        lhs.controlflow = []
 			| LocDef     lhs.controlflow = []
