@@ -12,32 +12,69 @@ include "../../GLua/AG/AST.ag"
 --
 -- TODO: moet nog uitgebreid worden om recursief te gaan
 {
+
 data SStat =
     SSemicolon |
-    SDef |
-    SLocDef |
-    SFuncCall |
-    SLabel |
+    SDef [(PrefixExp, MExpr)] |
+    SLocDef [(PrefixExp, MExpr)] |
+    SFuncCall PrefixExp |
+    SLabel MToken |
     SBreak |
     SContinue |
-    SGoto |
-    SDo |
-    SRepeat |
-    SIf |
-    SNFor |
-    SGFor |
-    SFunc |
-    [SStat]
+    SGoto MToken |
+    -- SDo Block |
+	SWhile MExpr |
+    SRepeat MExpr |
+    SIf MExpr | --no elif yet
+    SNFor MToken MExpr MExpr | -- ???
+    SGFor [MToken] [MExpr]|
+    SFunc FuncName [MToken]|
+	SLocFunc FuncName [MToken]
+	
+
+type Gr = [Node]
+type Node = (Key,Vertex,[Key])
+type Key = Int
+data Vertex = V SStat
+
 }
 
+attr Block MStat Stat
+	inh number :: {Int}
 
-attr AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp
-    syn stats :: {[SStat]}
+attr AST Block MStat Stat
+    syn controlflow :: {Gr}
+	
+sem AST |
+	AST lhs.controlflow =  @chunk.controlflow
+		chunk.number = 1
+	
+sem Block | Block lhs.controlflow = [(@lhs.number,(V SSemicolon),[])] -- fix return address?
 
-sem Block | Block lhs.stats = @stats.stats ++ @ret.stats
-
-sem MStat | MStat lhs.stats = @stats.stats
-
-sem Stat
-    | ASemicolon    lhs.stats = SSemicolon
-    | Def           lhs.stats = SDef
+sem MStat | MStat lhs.controlflow = []
+				  stat.number = @lhs.number
+				  
+sem Stat    | ASemicolon lhs.controlflow = []
+			| Def        lhs.controlflow = []
+			| LocDef     lhs.controlflow = []
+			| AFuncCall  lhs.controlflow = []
+			| ALabel     lhs.controlflow = []
+			| ABreak     lhs.controlflow = []
+			| AContinue  lhs.controlflow = []
+			| AGoto      lhs.controlflow = []
+			| ADo        lhs.controlflow = []
+						 body.number = @lhs.number + 1
+			| AWhile     lhs.controlflow = []
+						 body.number = @lhs.number + 1
+			| ARepeat    lhs.controlflow = []
+						 body.number = @lhs.number + 1
+			| AIf        lhs.controlflow = []
+						 body.number = @lhs.number + 1
+			| ANFor      lhs.controlflow = []
+						 body.number = @lhs.number + 1
+			| AGFor      lhs.controlflow = []
+						 body.number = @lhs.number + 1
+			| AFunc      lhs.controlflow = []
+						 body.number = @lhs.number + 1
+			| ALocFunc   lhs.controlflow = []
+						 body.number = @lhs.number + 1
