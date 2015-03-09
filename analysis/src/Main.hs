@@ -55,4 +55,4 @@ run file =do
 		putStrLn . show . snd $ ast
 
 		putStrLn "Pretty printed code:"
-		putStrLn . show . fst $ ast
+		putStrLn . prettyprint . fst $ ast
