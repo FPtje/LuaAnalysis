@@ -44,14 +44,14 @@ attr AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Arg
 
 sem MStatList
     | Cons       lhs.nodes       = @hd.nodes ++ @tl.nodes
-				 hd.number = @lhs.number
-				 tl.number = @hd.number
-				 lhs.number = @tl.number
+				 hd.number       = @lhs.number
+				 tl.number       = @hd.number
+				 lhs.number      = @tl.number
                  lhs.edges       = if null @tl.nodes then @hd.edges else (@hd.lastNumber, @tl.firstNumber, True) : @tl.edges --@hd.edges should be here right? otherwise you throw away last part of flow
                  loc.firstNumber = @hd.firstNumber
                  loc.lastNumber  = @tl.lastNumber
     | Nil        lhs.controlflow = empty
-				 lhs.number = @lhs.number
+				 lhs.number      = @lhs.number
                  lhs.nodes       = []
                  loc.firstNumber = @lhs.firstNumber
                  loc.lastNumber  = @lhs.lastNumber
