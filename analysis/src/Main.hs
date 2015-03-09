@@ -6,6 +6,7 @@ import GLua.TokenTypes
 import GLua.Parser
 import GLua.AG.PrettyPrint
 import Data.Graph.Inductive.Graph
+import Graphviz
 
 import Data.Char
 import Data.List (nub,(\\))
@@ -56,3 +57,25 @@ run file =do
 
 		putStrLn "Pretty printed code:"
 		putStrLn . prettyprint . fst $ ast
+		
+viewGr file = do
+		contents <- readFile file
+
+		-- Lex the file
+		let lex = execParseTokens contents
+		let tokens = fst lex
+		let errors = snd lex
+
+		unless (null errors) $ do
+			mapM_ print errors
+			-- Attempt to fix errors when asked
+			when (True) $ do
+				writeFile file . concatMap show $ tokens
+				putStrLn "Success"
+				exitSuccess
+
+			exitWith (ExitFailure 1)
+
+		let ast = parseGLua tokens
+		
+		putStrLn $ graphviz' $ getGraph . fst $ ast
