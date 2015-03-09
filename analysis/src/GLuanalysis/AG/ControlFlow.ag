@@ -52,7 +52,7 @@ sem MStatList
                  hd.number       = @lhs.number
                  tl.number       = @hd.number
                  lhs.number      = @tl.number
-                 lhs.edges       = @hd.edges ++ if null @tl.nodes then [] else (@hd.lastNumber, @tl.firstNumber, True) : @tl.edges --@hd.edges should be here right? otherwise you throw away last part of flow
+                 lhs.edges       = @hd.edges ++ if null @tl.nodes then [] else (@hd.lastNumber, @tl.firstNumber, True) : @tl.edges
                  loc.firstNumber = @hd.firstNumber
                  loc.lastNumber  = @tl.lastNumber
     | Nil        lhs.controlflow = empty
