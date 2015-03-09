@@ -3,39 +3,14 @@ module {GLuanalysis.AG.ControlFlow}{}{}
 imports
 {
 import GLua.AG.AST
-import Text.PrettyPrint
+import Data.Graph.Inductive.Graph
+import Data.Graph.Inductive.PatriciaTree
 }
 include "../../GLua/AG/AST.ag"
 
--- Output type of this AG
--- Simple statement
---
--- TODO: moet nog uitgebreid worden om recursief te gaan
 {
 
-data SStat =
-    SSemicolon |
-    SDef [(PrefixExp, MExpr)] |
-    SLocDef [(PrefixExp, MExpr)] |
-    SFuncCall PrefixExp |
-    SLabel MToken |
-    SBreak |
-    SContinue |
-    SGoto MToken |
-    SDo Block |
-	SWhile MExpr |
-    SRepeat MExpr |
-    SIf MExpr | --no elif yet
-    SNFor MToken MExpr MExpr | -- ???
-    SGFor [MToken] [MExpr]|
-    SFunc FuncName [MToken]|
-	SLocFunc FuncName [MToken]
-
-
-type Gr = [Node]
-type Node = (Key,Vertex,[Key])
-type Key = Int
-data Vertex = V SStat
+type AnalysisGraph = Gr Int Stat
 
 }
 
@@ -43,7 +18,7 @@ attr Block MStat Stat MStatList
 	chn number :: Int
 
 attr AST Block MStat Stat MStatList
-    syn controlflow :: {Gr}
+    syn controlflow :: {AnalysisGraph}
 
 
 
@@ -51,6 +26,7 @@ sem MStatList
     | Cons       lhs.number = @tl.number + 1
                  tl.number  = @lhs.number + 1
     | Nil        lhs.number = @lhs.number
+                 lhs.controlflow = empty
 
 sem AST |
 	AST lhs.controlflow =  @chunk.controlflow
@@ -58,30 +34,38 @@ sem AST |
 
 sem Block | Block lhs.controlflow = @stats.controlflow -- fix return address?
 
-sem MStat | MStat lhs.controlflow = []
+sem MStat | MStat lhs.controlflow = empty
 				  stat.number = @lhs.number
 
-sem Stat    | ASemicolon lhs.controlflow = []
-			| Def        lhs.controlflow = []
-			| LocDef     lhs.controlflow = []
-			| AFuncCall  lhs.controlflow = []
-			| ALabel     lhs.controlflow = []
-			| ABreak     lhs.controlflow = []
-			| AContinue  lhs.controlflow = []
-			| AGoto      lhs.controlflow = []
-			| ADo        lhs.controlflow = []
+sem Stat    | ASemicolon lhs.controlflow = empty
+                         lhs.number = @lhs.number + 1
+			| Def        lhs.controlflow = empty
+                         lhs.number = @lhs.number + 1
+			| LocDef     lhs.controlflow = empty
+                         lhs.number = @lhs.number + 1
+			| AFuncCall  lhs.controlflow = empty
+                         lhs.number = @lhs.number + 1
+			| ALabel     lhs.controlflow = empty
+                         lhs.number = @lhs.number + 1
+			| ABreak     lhs.controlflow = empty
+                         lhs.number = @lhs.number + 1
+			| AContinue  lhs.controlflow = empty
+                         lhs.number = @lhs.number + 1
+			| AGoto      lhs.controlflow = empty
+                         lhs.number = @lhs.number + 1
+			| ADo        lhs.controlflow = empty
 						 body.number = @lhs.number + 1
-			| AWhile     lhs.controlflow = []
+			| AWhile     lhs.controlflow = empty
 						 body.number = @lhs.number + 1
-			| ARepeat    lhs.controlflow = []
+			| ARepeat    lhs.controlflow = empty
 						 body.number = @lhs.number + 1
-			| AIf        lhs.controlflow = []
+			| AIf        lhs.controlflow = empty
 						 body.number = @lhs.number + 1
-			| ANFor      lhs.controlflow = []
+			| ANFor      lhs.controlflow = empty
 						 body.number = @lhs.number + 1
-			| AGFor      lhs.controlflow = []
+			| AGFor      lhs.controlflow = empty
 						 body.number = @lhs.number + 1
-			| AFunc      lhs.controlflow = []
+			| AFunc      lhs.controlflow = empty
 						 body.number = @lhs.number + 1
-			| ALocFunc   lhs.controlflow = []
+			| ALocFunc   lhs.controlflow = empty
 						 body.number = @lhs.number + 1
