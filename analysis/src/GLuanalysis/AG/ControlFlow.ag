@@ -10,16 +10,19 @@ include "../../GLua/AG/AST.ag"
 
 {
 
-type ANode = LNode Stat
+data NodeThing = NStat Stat | NReturn AReturn | NExpr MExpr
+
+type ANode = LNode NodeThing
 type AEdge = LEdge Bool -- TODO: different label for edges
 type AnalysisGraph = Gr ANode AEdge
 
 
 nextUnique :: Int -> (Int, Int)
 nextUnique u = (u+1, u)
+
 }
 
-attr Block MStat Stat MStatList
+attr Block MStat Stat MStatList AReturn
 	chn number :: Int
 
 attr AST Block MStat Stat MStatList
@@ -37,50 +40,54 @@ sem MStatList
                  lhs.nodes       = []
 
 sem AST |
-	AST lhs.controlflow =  @chunk.controlflow
+	AST lhs.controlflow = @chunk.controlflow
 		chunk.number = 1
 
 sem Block | Block lhs.controlflow = @stats.controlflow -- fix return address?
+                  lhs.nodes       = (@ret.number, NReturn @ret.copy) : @stats.nodes -- TODO: Return statement
+
+sem AReturn | AReturn   loc.number :: uniqueref number
+            | NoReturn  loc.number :: uniqueref number
 
 sem MStat | MStat lhs.controlflow = @stat.controlflow
 				  loc.number :: uniqueref number
 
 sem Stat    | ASemicolon lhs.controlflow = empty
 			| Def        lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, @loc.copy)]
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
 			| LocDef     lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, @loc.copy)]
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
 			| AFuncCall  lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, @loc.copy)] -- todo: function calls
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] -- todo: function calls
 			| ALabel     lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, @loc.copy)]
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
 			| ABreak     lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, @loc.copy)]
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
 			| AContinue  lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, @loc.copy)]
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
 			| AGoto      lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, @loc.copy)]
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
 			| ADo        lhs.controlflow = empty
                          lhs.nodes       = @body.nodes
                          loc.number :: uniqueref number
 			| AWhile     lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, @loc.copy)] ++ @body.nodes
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
 			| ARepeat    lhs.controlflow = empty
-                         lhs.nodes       = @body.nodes ++ [(@lhs.number, @loc.copy)]
+                         lhs.nodes       = @body.nodes ++ [(@lhs.number, NStat @loc.copy)]
                          loc.number :: uniqueref number
 			| AIf        lhs.controlflow = mkGraph [] []
-                         loc.nodes       = (@lhs.number, @loc.copy) : @body.nodes -- TODO: elseifs
+                         loc.nodes       = (@lhs.number, NStat @loc.copy) : @body.nodes -- TODO: elseifs
                          loc.number :: uniqueref number
 			| ANFor      lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, @loc.copy)] ++ @body.nodes
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
 			| AGFor      lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, @loc.copy)] ++ @body.nodes
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
 			| AFunc      lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, @loc.copy)] ++ @body.nodes
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
 			| ALocFunc   lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, @loc.copy)] ++ @body.nodes
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
