@@ -4,6 +4,7 @@ import GLuanalysis.AG.ControlFlow
 import GLua.Lexer
 import GLua.TokenTypes
 import GLua.Parser
+import GLua.AG.PrettyPrint
 
 import Data.Char
 
@@ -36,7 +37,17 @@ run file =do
 
 		let ast = parseGLua tokens
 		
+		putStrLn "\nGraph:\n"
 		putStrLn . show . getGraph . fst $ ast
+		
+		putStrLn "\nNodes\n"
+		putStrLn . show . getNodes. fst $ ast
+		
+		putStrLn "\nEdges\n"
+		putStrLn . show . getEdges . fst $ ast
 		
 		putStrLn "\nErrors:\n"
 		putStrLn . show . snd $ ast
+		
+		putStrLn "Pretty printed code:"
+		putStrLn . show . fst $ ast

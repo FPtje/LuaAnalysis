@@ -24,6 +24,8 @@ nextUnique u = (u+1, u)
 getGraph :: AST -> AnalysisGraph
 getGraph a = controlflow_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 0))
 
+getNodes a = nodes_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 0))
+getEdges a = edges_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 0))
 }
 
 attr Block MStat Stat MStatList AReturn
@@ -56,6 +58,7 @@ sem AST |
 
 sem Block | Block lhs.controlflow = @stats.controlflow -- fix return address?
                   loc.nodes       = (@ret.number, NReturn @ret.copy) : @stats.nodes -- TODO: Return statement
+				  lhs.edges = @stats.edges
                   lhs.firstNumber = fst . head $ @loc.nodes
                   lhs.lastNumber  = fst . last $ @loc.nodes
 
@@ -114,7 +117,7 @@ sem Stat    | ASemicolon lhs.controlflow = empty
                          loc.number :: uniqueref number
                          loc.firstNumber = @loc.number
                          loc.lastNumber  = @body.lastNumber
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy )] ++ @body.nodes 
                          lhs.edges       = (@loc.lastNumber, @loc.firstNumber, True) :
                                            (@loc.firstNumber, @body.firstNumber, True) :
                                            @body.edges -- TODO: inh value for place to return with continue/break
