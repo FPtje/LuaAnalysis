@@ -11,7 +11,7 @@ include "../../GLua/AG/AST.ag"
 {
 
 data NodeThing = NStat Stat | NReturn AReturn | NExpr MExpr
-	deriving Show
+    deriving Show
 
 type ANode = LNode NodeThing
 type AEdge = LEdge Bool -- TODO: different label for edges
@@ -29,7 +29,7 @@ getEdges a = edges_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 0))
 }
 
 attr Block MStat Stat MStatList AReturn ElseIf ElseIfList Else
-	chn number :: Int
+    chn number :: Int
 
 attr AST Block MStat Stat MStatList ElseIf ElseIfList Else AReturn
     syn controlflow :: {AnalysisGraph}
@@ -44,14 +44,14 @@ attr AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Arg
 
 sem MStatList
     | Cons       lhs.nodes       = @hd.nodes ++ @tl.nodes
-				 hd.number       = @lhs.number
-				 tl.number       = @hd.number
-				 lhs.number      = @tl.number
+                 hd.number       = @lhs.number
+                 tl.number       = @hd.number
+                 lhs.number      = @tl.number
                  lhs.edges       = if null @tl.nodes then @hd.edges else (@hd.lastNumber, @tl.firstNumber, True) : @tl.edges --@hd.edges should be here right? otherwise you throw away last part of flow
                  loc.firstNumber = @hd.firstNumber
                  loc.lastNumber  = @tl.lastNumber
     | Nil        lhs.controlflow = empty
-				 lhs.number      = @lhs.number
+                 lhs.number      = @lhs.number
                  lhs.nodes       = []
                  loc.firstNumber = @lhs.firstNumber
                  loc.lastNumber  = @lhs.lastNumber
@@ -78,14 +78,14 @@ sem AReturn
                  lhs.number      = @lhs.number - 1
 
 sem AST |
-	AST lhs.controlflow = mkGraph @chunk.nodes @chunk.edges
-		chunk.number = 1
+    AST lhs.controlflow = mkGraph @chunk.nodes @chunk.edges
+        chunk.number = 1
 
 sem Block | Block lhs.controlflow = @stats.controlflow -- fix return address?
-                  loc.nodes       =  @stats.nodes ++ @ret.nodes
-				  lhs.edges = @stats.edges
-				  lhs.number = @ret.number + 1
-				  ret.number = @stats.number
+                  loc.nodes       = @stats.nodes ++ @ret.nodes
+                  lhs.edges       = @stats.edges
+                  lhs.number      = @ret.number + 1
+                  ret.number      = @stats.number
                   lhs.firstNumber = fst . head $ @loc.nodes
                   lhs.lastNumber  = fst . last $ @loc.nodes
 
@@ -93,60 +93,60 @@ sem MStat | MStat lhs.controlflow = @stat.controlflow
 
 
 sem Stat    | ASemicolon lhs.controlflow = empty
-						 --lhs.number     = @lhs.number
+                         --lhs.number     = @lhs.number
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
-			| Def        lhs.controlflow = empty
+            | Def        lhs.controlflow = empty
 
-						 lhs.number = @lhs.number + 1
-                         loc.firstNumber = @lhs.number
-                         loc.lastNumber  = @lhs.number
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
-			| LocDef     lhs.controlflow = empty
-
-						 lhs.number = @lhs.number + 1
+                         lhs.number = @lhs.number + 1
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
-			| AFuncCall  lhs.controlflow = empty
+            | LocDef     lhs.controlflow = empty
 
-						 lhs.number = @lhs.number + 1
+                         lhs.number = @lhs.number + 1
+                         loc.firstNumber = @lhs.number
+                         loc.lastNumber  = @lhs.number
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
+            | AFuncCall  lhs.controlflow = empty
+
+                         lhs.number = @lhs.number + 1
                          loc.firstNumber = @lhs.number-- TODO: proper first and last
                          loc.lastNumber  = @lhs.number-- TODO: proper first and last
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)] -- todo: function calls
-			| ALabel     lhs.controlflow = empty
+            | ALabel     lhs.controlflow = empty
 
-						 lhs.number = @lhs.number + 1
+                         lhs.number = @lhs.number + 1
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
-			| ABreak     lhs.controlflow = empty
+            | ABreak     lhs.controlflow = empty
 
-						 lhs.number = @lhs.number + 1
+                         lhs.number = @lhs.number + 1
                          loc.firstNumber = @lhs.number-- TODO: proper first and last
                          loc.lastNumber  = @lhs.number-- TODO: proper first and last
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
-			| AContinue  lhs.controlflow = empty
+            | AContinue  lhs.controlflow = empty
 
-						 lhs.number = @lhs.number + 1
+                         lhs.number = @lhs.number + 1
                          loc.firstNumber = @lhs.number-- TODO: proper first and last
                          loc.lastNumber  = @lhs.number-- TODO: proper first and last
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
-			| AGoto      lhs.controlflow = empty
+            | AGoto      lhs.controlflow = empty
 
-						 lhs.number = @lhs.number + 1
+                         lhs.number = @lhs.number + 1
                          loc.firstNumber = @lhs.number-- TODO: proper first and last
                          loc.lastNumber  = @lhs.number-- TODO: proper first and last
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
-			| ADo        lhs.controlflow = empty
-						 lhs.number = @body.number + 1
+            | ADo        lhs.controlflow = empty
+                         lhs.number = @body.number + 1
                          body.number = @lhs.number
                          loc.firstNumber = @body.firstNumber
                          loc.lastNumber  = @body.lastNumber
                          lhs.nodes       = @body.nodes
                          lhs.edges       = @body.edges
-			| AWhile     lhs.controlflow = empty
-						 body.number = @lhs.number + 1
+            | AWhile     lhs.controlflow = empty
+                         body.number = @lhs.number + 1
                          lhs.number = @body.number
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @body.lastNumber
@@ -154,42 +154,42 @@ sem Stat    | ASemicolon lhs.controlflow = empty
                          lhs.edges       = (@loc.lastNumber, @loc.firstNumber, True) :
                                            (@loc.firstNumber, @body.firstNumber, True) :
                                            @body.edges -- TODO: inh value for place to return with continue/break
-			| ARepeat    lhs.controlflow = empty
-						 lhs.number = @body.number
-						 body.number = @lhs.number + 1
+            | ARepeat    lhs.controlflow = empty
+                         lhs.number = @body.number
+                         body.number = @lhs.number + 1
                          loc.firstNumber = @body.firstNumber
                          loc.lastNumber  = @lhs.number
                          lhs.nodes       = @body.nodes ++ [(@lhs.number, NStat @loc.copy)]
                          lhs.edges       = (@body.lastNumber, @lhs.number, True) :
                                            (@lhs.number, @body.firstNumber, True) :
                                            @body.edges
-			| AIf        lhs.controlflow = mkGraph [] []
+            | AIf        lhs.controlflow = mkGraph [] []
 
-						 lhs.number = @lhs.number + 1
+                         lhs.number = @lhs.number + 1
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
                          loc.nodes       = (@lhs.number, NStat @loc.copy) : @body.nodes -- TODO: elseifs
-			| ANFor      lhs.controlflow = empty
+            | ANFor      lhs.controlflow = empty
 
-						 lhs.number = @lhs.number + 1
+                         lhs.number = @lhs.number + 1
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
-			| AGFor      lhs.controlflow = empty
+            | AGFor      lhs.controlflow = empty
 
-						 lhs.number = @lhs.number + 1
+                         lhs.number = @lhs.number + 1
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
-			| AFunc      lhs.controlflow = empty
+            | AFunc      lhs.controlflow = empty
 
-						 lhs.number = @lhs.number + 1
+                         lhs.number = @lhs.number + 1
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
-			| ALocFunc   lhs.controlflow = empty
+            | ALocFunc   lhs.controlflow = empty
 
-						 lhs.number = @lhs.number + 1
+                         lhs.number = @lhs.number + 1
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
