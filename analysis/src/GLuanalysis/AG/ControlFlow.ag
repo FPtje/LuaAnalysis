@@ -47,7 +47,7 @@ sem MStatList
 				 hd.number = @lhs.number
 				 tl.number = @hd.number
 				 lhs.number = @tl.number
-                 lhs.edges       = if null @tl.nodes then [] else (@hd.lastNumber, @tl.firstNumber, True) : @tl.edges
+                 lhs.edges       = if null @tl.nodes then @hd.edges else (@hd.lastNumber, @tl.firstNumber, True) : @tl.edges --@hd.edges should be here right? otherwise you throw away last part of flow
                  loc.firstNumber = @hd.firstNumber
                  loc.lastNumber  = @tl.lastNumber
     | Nil        lhs.controlflow = empty
@@ -74,15 +74,17 @@ sem AST |
 		chunk.number = 1
 
 sem Block | Block lhs.controlflow = @stats.controlflow -- fix return address?
-                  loc.nodes       = (@ret.number, NReturn @ret.copy) : @stats.nodes -- TODO: Return statement
+                  loc.nodes       =  @stats.nodes ++ case @ret.copy of
+													 (AReturn _ _) -> [(@ret.number, NReturn @ret.copy)]
+													 (NoReturn) -> [] -- TODO: Return statement
 				  lhs.edges = @stats.edges
 				  lhs.number = @ret.number + 1
-				  ret.number = @stats.number + 1
+				  ret.number = @stats.number
                   lhs.firstNumber = fst . head $ @loc.nodes
                   lhs.lastNumber  = fst . last $ @loc.nodes
 
-sem AReturn | AReturn   lhs.number = @lhs.number + 1
-            | NoReturn  lhs.number = @lhs.number + 1
+sem AReturn | AReturn   lhs.number = @lhs.number
+            | NoReturn  lhs.number = @lhs.number - 1
 
 sem MStat | MStat lhs.controlflow = @stat.controlflow
 
