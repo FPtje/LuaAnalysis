@@ -199,18 +199,26 @@ sem Stat    | ASemicolon lhs.controlflow = empty
                                                 -- idea: make lastNumber a list
                                            (@lhs.number, @body.firstNumber, True) :
                                            @body.edges ++ @elifs.edges ++ @els.edges
+
             | ANFor      lhs.controlflow = empty
-
-                         lhs.number = @lhs.number + 1
+                         body.number     = @lhs.number + 1
+                         lhs.number      = @body.number
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+                         lhs.edges       = (@loc.firstNumber, @body.firstNumber, True) :
+                                           (@body.lastNumber, @loc.firstNumber, True) :
+                                           @body.edges -- TODO: annotate fail edge (now created by sequence) with False or something?
+
             | AGFor      lhs.controlflow = empty
-
-                         lhs.number = @lhs.number + 1
+                         body.number     = @lhs.number + 1
+                         lhs.number      = @body.number
                          loc.firstNumber = @lhs.number
                          loc.lastNumber  = @lhs.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+                         lhs.edges       = (@loc.firstNumber, @body.firstNumber, True) :
+                                           (@body.lastNumber, @loc.firstNumber, True) :
+                                           @body.edges -- TODO: annotate fail edge (now created by sequence) with False or something?
             | AFunc      lhs.controlflow = empty
 
                          lhs.number = @lhs.number + 1
