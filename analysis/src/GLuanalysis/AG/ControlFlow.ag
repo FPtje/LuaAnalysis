@@ -28,66 +28,122 @@ attr Block MStat Stat MStatList AReturn
 attr AST Block MStat Stat MStatList
     syn controlflow :: {AnalysisGraph}
     syn nodes use {++} {[]} :: {[ANode]}
+    syn edges use {++} {[]} :: {[AEdge]}
+
+    chn firstNumber :: Int
+    chn lastNumber  :: Int
 
 attr AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp MStatList MExprList FieldList Declaration VarsList
     syn copy :: self
 
 sem MStatList
-    | Cons       loc.number :: uniqueref number
-                 lhs.nodes       = @hd.nodes ++ @tl.nodes
-    | Nil        loc.number :: uniqueref number
-                 lhs.controlflow = empty
+    | Cons       lhs.nodes       = @hd.nodes ++ @tl.nodes
+                 lhs.edges       = if null @tl.nodes then [] else (@hd.lastNumber, @tl.firstNumber, True) : @tl.edges
+                 loc.firstNumber = @hd.firstNumber
+                 loc.lastNumber  = @tl.lastNumber
+    | Nil        lhs.controlflow = empty
                  lhs.nodes       = []
+                 loc.firstNumber = @lhs.firstNumber
+                 loc.lastNumber  = @lhs.lastNumber
 
 sem AST |
 	AST lhs.controlflow = @chunk.controlflow
 		chunk.number = 1
 
 sem Block | Block lhs.controlflow = @stats.controlflow -- fix return address?
-                  lhs.nodes       = (@ret.number, NReturn @ret.copy) : @stats.nodes -- TODO: Return statement
+                  loc.nodes       = (@ret.number, NReturn @ret.copy) : @stats.nodes -- TODO: Return statement
+                  lhs.firstNumber = fst . head $ @loc.nodes
+                  lhs.lastNumber  = fst . last $ @loc.nodes
 
 sem AReturn | AReturn   loc.number :: uniqueref number
-            | NoReturn  loc.number :: uniqueref number
+            | NoReturn
 
 sem MStat | MStat lhs.controlflow = @stat.controlflow
-				  loc.number :: uniqueref number
+
 
 sem Stat    | ASemicolon lhs.controlflow = empty
+                         loc.number :: uniqueref number
+                         loc.firstNumber = @loc.number
+                         loc.lastNumber  = @loc.number
 			| Def        lhs.controlflow = empty
+                         loc.number :: uniqueref number
+                         loc.firstNumber = @loc.number
+                         loc.lastNumber  = @loc.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
 			| LocDef     lhs.controlflow = empty
+                         loc.number :: uniqueref number
+                         loc.firstNumber = @loc.number
+                         loc.lastNumber  = @loc.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
 			| AFuncCall  lhs.controlflow = empty
+                         loc.number :: uniqueref number
+                         loc.firstNumber = @loc.number -- TODO: proper first and last
+                         loc.lastNumber  = @loc.number -- TODO: proper first and last
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)] -- todo: function calls
 			| ALabel     lhs.controlflow = empty
+                         loc.number :: uniqueref number
+                         loc.firstNumber = @loc.number
+                         loc.lastNumber  = @loc.number
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
 			| ABreak     lhs.controlflow = empty
+                         loc.number :: uniqueref number
+                         loc.firstNumber = @loc.number -- TODO: proper first and last
+                         loc.lastNumber  = @loc.number -- TODO: proper first and last
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
 			| AContinue  lhs.controlflow = empty
+                         loc.number :: uniqueref number
+                         loc.firstNumber = @loc.number -- TODO: proper first and last
+                         loc.lastNumber  = @loc.number -- TODO: proper first and last
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
 			| AGoto      lhs.controlflow = empty
+                         loc.number :: uniqueref number
+                         loc.firstNumber = @loc.number -- TODO: proper first and last
+                         loc.lastNumber  = @loc.number -- TODO: proper first and last
                          lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
 			| ADo        lhs.controlflow = empty
+                         loc.number :: uniqueref number
+                         loc.firstNumber = @body.firstNumber
+                         loc.lastNumber  = @body.lastNumber
                          lhs.nodes       = @body.nodes
-                         loc.number :: uniqueref number
+                         lhs.edges       = @body.edges
 			| AWhile     lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
+                         loc.firstNumber = @loc.number
+                         loc.lastNumber  = @body.lastNumber
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+                         lhs.edges       = (@loc.lastNumber, @loc.firstNumber, True) :
+                                           (@loc.firstNumber, @body.firstNumber, True) :
+                                           @body.edges -- TODO: inh value for place to return with continue/break
 			| ARepeat    lhs.controlflow = empty
+                         loc.number :: uniqueref number
+                         loc.firstNumber = @body.firstNumber
+                         loc.lastNumber  = @loc.number
                          lhs.nodes       = @body.nodes ++ [(@lhs.number, NStat @loc.copy)]
-                         loc.number :: uniqueref number
+                         lhs.edges       = (@body.lastNumber, @loc.number, True) :
+                                           (@lhs.number, @body.firstNumber, True) :
+                                           @body.edges
 			| AIf        lhs.controlflow = mkGraph [] []
+                         loc.number :: uniqueref number
+                         loc.firstNumber = @loc.number
+                         loc.lastNumber  = @loc.number
                          loc.nodes       = (@lhs.number, NStat @loc.copy) : @body.nodes -- TODO: elseifs
-                         loc.number :: uniqueref number
 			| ANFor      lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
+                         loc.firstNumber = @loc.number
+                         loc.lastNumber  = @loc.number
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
 			| AGFor      lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
+                         loc.firstNumber = @loc.number
+                         loc.lastNumber  = @loc.number
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
 			| AFunc      lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
+                         loc.firstNumber = @loc.number
+                         loc.lastNumber  = @loc.number
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
 			| ALocFunc   lhs.controlflow = empty
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
+                         loc.firstNumber = @loc.number
+                         loc.lastNumber  = @loc.number
+                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
