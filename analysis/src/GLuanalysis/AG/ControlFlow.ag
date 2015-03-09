@@ -12,6 +12,9 @@ include "../../GLua/AG/AST.ag"
 
 type AnalysisGraph = Gr Int Stat
 
+
+nextUnique :: Int -> (Int, Int)
+nextUnique u = (u+1, u)
 }
 
 attr Block MStat Stat MStatList
@@ -23,9 +26,8 @@ attr AST Block MStat Stat MStatList
 
 
 sem MStatList
-    | Cons       lhs.number = @tl.number + 1
-                 tl.number  = @lhs.number + 1
-    | Nil        lhs.number = @lhs.number
+    | Cons       loc.number :: uniqueref number
+    | Nil        loc.number :: uniqueref number
                  lhs.controlflow = empty
 
 sem AST |
@@ -35,37 +37,29 @@ sem AST |
 sem Block | Block lhs.controlflow = @stats.controlflow -- fix return address?
 
 sem MStat | MStat lhs.controlflow = empty
-				  stat.number = @lhs.number
+				  loc.number :: uniqueref number
 
 sem Stat    | ASemicolon lhs.controlflow = empty
-                         lhs.number = @lhs.number + 1
 			| Def        lhs.controlflow = empty
-                         lhs.number = @lhs.number + 1
 			| LocDef     lhs.controlflow = empty
-                         lhs.number = @lhs.number + 1
 			| AFuncCall  lhs.controlflow = empty
-                         lhs.number = @lhs.number + 1
 			| ALabel     lhs.controlflow = empty
-                         lhs.number = @lhs.number + 1
 			| ABreak     lhs.controlflow = empty
-                         lhs.number = @lhs.number + 1
 			| AContinue  lhs.controlflow = empty
-                         lhs.number = @lhs.number + 1
 			| AGoto      lhs.controlflow = empty
-                         lhs.number = @lhs.number + 1
 			| ADo        lhs.controlflow = empty
-						 body.number = @lhs.number + 1
+                         loc.number :: uniqueref number
 			| AWhile     lhs.controlflow = empty
-						 body.number = @lhs.number + 1
+                         loc.number :: uniqueref number
 			| ARepeat    lhs.controlflow = empty
-						 body.number = @lhs.number + 1
+                         loc.number :: uniqueref number
 			| AIf        lhs.controlflow = empty
-						 body.number = @lhs.number + 1
+                         loc.number :: uniqueref number
 			| ANFor      lhs.controlflow = empty
-						 body.number = @lhs.number + 1
+                         loc.number :: uniqueref number
 			| AGFor      lhs.controlflow = empty
-						 body.number = @lhs.number + 1
+                         loc.number :: uniqueref number
 			| AFunc      lhs.controlflow = empty
-						 body.number = @lhs.number + 1
+                         loc.number :: uniqueref number
 			| ALocFunc   lhs.controlflow = empty
-						 body.number = @lhs.number + 1
+                         loc.number :: uniqueref number
