@@ -10,7 +10,9 @@ include "../../GLua/AG/AST.ag"
 
 {
 
-type AnalysisGraph = Gr Int Stat
+type ANode = LNode Stat
+type AEdge = LEdge Bool -- TODO: different label for edges
+type AnalysisGraph = Gr ANode AEdge
 
 
 nextUnique :: Int -> (Int, Int)
@@ -22,13 +24,17 @@ attr Block MStat Stat MStatList
 
 attr AST Block MStat Stat MStatList
     syn controlflow :: {AnalysisGraph}
+    syn nodes use {++} {[]} :: {[ANode]}
 
-
+attr AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp MStatList MExprList FieldList Declaration VarsList
+    syn copy :: self
 
 sem MStatList
     | Cons       loc.number :: uniqueref number
+                 lhs.nodes       = @hd.nodes ++ @tl.nodes
     | Nil        loc.number :: uniqueref number
                  lhs.controlflow = empty
+                 lhs.nodes       = []
 
 sem AST |
 	AST lhs.controlflow =  @chunk.controlflow
@@ -36,30 +42,45 @@ sem AST |
 
 sem Block | Block lhs.controlflow = @stats.controlflow -- fix return address?
 
-sem MStat | MStat lhs.controlflow = empty
+sem MStat | MStat lhs.controlflow = @stat.controlflow
 				  loc.number :: uniqueref number
 
 sem Stat    | ASemicolon lhs.controlflow = empty
 			| Def        lhs.controlflow = empty
+                         lhs.nodes       = [(@lhs.number, @loc.copy)]
 			| LocDef     lhs.controlflow = empty
+                         lhs.nodes       = [(@lhs.number, @loc.copy)]
 			| AFuncCall  lhs.controlflow = empty
+                         lhs.nodes       = [(@lhs.number, @loc.copy)] -- todo: function calls
 			| ALabel     lhs.controlflow = empty
+                         lhs.nodes       = [(@lhs.number, @loc.copy)]
 			| ABreak     lhs.controlflow = empty
+                         lhs.nodes       = [(@lhs.number, @loc.copy)]
 			| AContinue  lhs.controlflow = empty
+                         lhs.nodes       = [(@lhs.number, @loc.copy)]
 			| AGoto      lhs.controlflow = empty
+                         lhs.nodes       = [(@lhs.number, @loc.copy)]
 			| ADo        lhs.controlflow = empty
+                         lhs.nodes       = @body.nodes
                          loc.number :: uniqueref number
 			| AWhile     lhs.controlflow = empty
+                         lhs.nodes       = [(@lhs.number, @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
 			| ARepeat    lhs.controlflow = empty
+                         lhs.nodes       = @body.nodes ++ [(@lhs.number, @loc.copy)]
                          loc.number :: uniqueref number
-			| AIf        lhs.controlflow = empty
+			| AIf        lhs.controlflow = mkGraph [] []
+                         loc.nodes       = (@lhs.number, @loc.copy) : @body.nodes -- TODO: elseifs
                          loc.number :: uniqueref number
 			| ANFor      lhs.controlflow = empty
+                         lhs.nodes       = [(@lhs.number, @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
 			| AGFor      lhs.controlflow = empty
+                         lhs.nodes       = [(@lhs.number, @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
 			| AFunc      lhs.controlflow = empty
+                         lhs.nodes       = [(@lhs.number, @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
 			| ALocFunc   lhs.controlflow = empty
+                         lhs.nodes       = [(@lhs.number, @loc.copy)] ++ @body.nodes
                          loc.number :: uniqueref number
