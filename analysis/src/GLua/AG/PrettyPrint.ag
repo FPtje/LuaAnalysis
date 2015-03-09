@@ -21,7 +21,7 @@ printList f sep (e : es) = (f e) <> g es
         g (e : es) = text sep <> (f e) <> g es
 
 metaDoc :: Maybe MToken -> Doc
-metaDoc (Just m) = tok m
+metaDoc (Just m) = char ':' <> tok m
 metaDoc Nothing  = empty
 
 printVarList :: [(PrefixExp, MExpr)] -> Doc
@@ -86,8 +86,8 @@ sem FuncName
     | FuncName   lhs.pretty = printList tok "." @names <> metaDoc @meta
 
 sem PrefixExp
-    | PFVar      lhs.pretty = tok @name <> printList pp_pfexprsuffix "" (reverse @suffixes)
-    | ExprVar    lhs.pretty = char '(' <> @expr.pretty <> char ')' <> printList pp_pfexprsuffix "" (reverse @suffixes)
+    | PFVar      lhs.pretty = tok @name <> printList pp_pfexprsuffix "" @suffixes
+    | ExprVar    lhs.pretty = char '(' <> @expr.pretty <> char ')' <> printList pp_pfexprsuffix "" @suffixes
 
 sem PFExprSuffix
     | Call       lhs.pretty = @args.pretty
@@ -102,7 +102,7 @@ sem Expr
     | ANumber           lhs.pretty = text @num
     | AString           lhs.pretty = tok @str
     | AVarArg           lhs.pretty = text "..."
-    | AnonymousFunc     lhs.pretty = text "function (" <> printList tok ", " @pars <> text ")" $+$ @body.pretty $+$ text "end"
+    | AnonymousFunc     lhs.pretty = text "function(" <> printList tok ", " @pars <> text ")" $+$ @body.pretty $+$ text "end"
                         body.indent = 1
     | APrefixExpr       lhs.pretty = @pexpr.pretty
                         pexpr.indent = 0

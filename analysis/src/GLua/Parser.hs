@@ -9,7 +9,6 @@ module GLua.Parser where
 
 import GLua.TokenTypes
 import GLua.AG.AST
-import GLua.AG.PrettyPrint
 import qualified GLua.Lexer as Lex
 
 import Text.ParserCombinators.UU
@@ -65,9 +64,8 @@ parseParList = pName <**> (
                     pMTok Comma <**> (
                         (\a _ c -> [c, a]) <$> pMTok VarArg <<|>
                         (\a _ c -> c : a)  <$> parseParList
-                    ) <<|>
-                    pReturn (: [])
-               ) <<|> pReturn []
+                    ) `opt` (: [])
+               ) `opt` []
 
 -- | Parses the full AST
 -- Its first parameter contains all comments
@@ -84,7 +82,7 @@ parseStat :: AParser Stat
 parseStat = ASemicolon <$ pMTok Semicolon <<|>
             (AFuncCall <$> pFunctionCall <|>
             -- Function calls and definitions both start with a var
-            (\v p e -> Def (zip v $ e ++ repeat (MExpr p ANil))) <$> parseVarList <* pMTok Equals <*> pPos <*> parseExpressionList) <<|>
+             (\v p e -> Def (zip v $ e ++ repeat (MExpr p ANil))) <$> parseVarList <* pMTok Equals <*> pPos <*> parseExpressionList) <<|>
             ALabel <$> parseLabel <<|>
             ABreak <$ pMTok Break <<|>
             AContinue <$ pMTok Continue <<|>
@@ -121,19 +119,21 @@ parseIf = AIf <$ pMTok If <*> parseExpression <* pMTok Then <*>
 
 -- | Parse numeric and generic for loops
 parseFor :: AParser Stat
-parseFor = ANFor <$ pMTok For <*>
-            pName <* pMTok Equals <*> parseExpression <*
-            -- end value
-            pMTok Comma <*> parseExpression <*>
-            -- step (1 if not filled in)
-            (pMTok Comma *> parseExpression <<|> MExpr <$> pPos <*> pReturn (ANumber "1")) <*
-            pMTok Do <*> parseBlock <*
-            pMTok End
+parseFor = pPacked (pMTok For) (pMTok End) (
+            ANFor <$>
+              pName <* pMTok Equals <*> parseExpression <*
+              -- end value
+              pMTok Comma <*> parseExpression <*>
+              -- step (1 if not filled in)
+              (pMTok Comma *> parseExpression <<|> MExpr <$> pPos <*> pReturn (ANumber "1")) <*
+              pMTok Do <*> parseBlock <*
+              pMTok End
             <|>
-           AGFor <$ pMTok For <*> parseNameList <*
-            pMTok In <*> parseExpressionList <*
-            pMTok Do <*> parseBlock <*
-            pMTok End
+            AGFor <$> parseNameList <*
+              pMTok In <*> parseExpressionList <*
+              pMTok Do <*> parseBlock
+            )
+
 
 -- | Parse a return value
 parseReturn :: AParser AReturn
@@ -178,27 +178,13 @@ pName = pSatisfy isName (Insertion "Identifier" (MToken (LineColPos 0 0 0) (Iden
         isName (MToken _ (Identifier _)) = True
         isName _ = False
 
--- | single variable. Note: definition differs from reference to circumvent the left recursion
--- var ::= Name [{PFExprSuffix}* indexation] | '(' exp ')' {PFExprSuffix}* indexation
--- where "{PFExprSuffix}* indexation" is any arbitrary sequence of prefix expression suffixes that end with an indexation
-parseVar :: AParser PrefixExp
-parseVar = PFVar <$> pName <*> (reverse <$> opt suffixes []) <<|>
-           ExprVar <$ pMTok LRound <*> parseExpression <* pMTok RRound <*> (reverse <$> suffixes)
-    where
-        suffixes = (:) <$> pPFExprSuffix <*> suffixes <|>
-                   (flip (:) [] . ExprIndex) <$ pMTok LSquare <*> parseExpression <* pMTok RSquare <|>
-                   (flip (:) [] . DotIndex) <$ pMTok Dot <*> pName
-
 -- | Parse variable list (var1, var2, var3)
 parseVarList :: AParser [PrefixExp]
 parseVarList = pList1Sep (pMTok Comma) parseVar
 
 -- | list of expressions
 parseExpressionList :: AParser [MExpr]
-parseExpressionList = parseExpression <**> (
-                          (\_ list exp -> exp : list) <$> pMTok Comma <*> parseExpressionList <<|>
-                          flip (:) <$> pReturn []
-                      )
+parseExpressionList = pList1Sep (pMTok Comma) parseExpression
 
 -- | Subexpressions, i.e. without operators
 parseSubExpression :: AParser Expr
@@ -222,8 +208,15 @@ parseAnonymFunc = AnonymousFunc <$
 
 
 -- | Parse operators of the same precedence in a chain
-samePrio :: [(Token, BinOp)] -> AParser MExpr -> AParser MExpr
-samePrio ops p = pChainl (choice (map f ops)) p
+samePrioL :: [(Token, BinOp)] -> AParser MExpr -> AParser MExpr
+samePrioL ops p = pChainl (choice (map f ops)) p
+  where
+    choice = foldr (<<|>) pFail
+    f :: (Token, BinOp) -> AParser (MExpr -> MExpr -> MExpr)
+    f (t, at) = (\p e1 e2 -> MExpr p (BinOpExpr at e1 e2)) <$ pMTok t <*> pPos
+
+samePrioR :: [(Token, BinOp)] -> AParser MExpr -> AParser MExpr
+samePrioR ops p = pChainr (choice (map f ops)) p
   where
     choice = foldr (<<|>) pFail
     f :: (Token, BinOp) -> AParser (MExpr -> MExpr -> MExpr)
@@ -251,14 +244,14 @@ lvl8 = [(Power, APower)]
 
 -- | Parse chains of binary and unary operators
 parseExpression :: AParser MExpr
-parseExpression = samePrio lvl1 $
-                  samePrio lvl2 $
-                  samePrio lvl3 $
-                  samePrio lvl4 $
-                  samePrio lvl5 $
-                  samePrio lvl6 $
+parseExpression = samePrioL lvl1 $
+                  samePrioL lvl2 $
+                  samePrioL lvl3 $
+                  samePrioR lvl4 $
+                  samePrioL lvl5 $
+                  samePrioL lvl6 $
                   MExpr <$> pPos <*> (UnOpExpr <$> parseUnOp <*> parseExpression) <<|> -- lvl7
-                  samePrio lvl8 (MExpr <$$> parseSubExpression <*> pPos)
+                  samePrioR lvl8 (MExpr <$$> parseSubExpression <*> pPos)
 
 -- | Prefix expressions
 -- can have any arbitrary list of expression suffixes
@@ -268,24 +261,38 @@ parsePrefixExp = pPrefixExp (pMany pPFExprSuffix)
 -- | Prefix expressions
 -- The suffixes define rules on the allowed suffixes
 pPrefixExp :: AParser [PFExprSuffix] -> AParser PrefixExp
-pPrefixExp suffixes = PFVar <$> pName <*> (reverse <$> suffixes) <<|>
-                      ExprVar <$ pMTok LRound <*> parseExpression <* pMTok RRound <*> (reverse <$> suffixes)
+pPrefixExp suffixes = PFVar <$> pName <*> suffixes <<|>
+                      ExprVar <$ pMTok LRound <*> parseExpression <* pMTok RRound <*> suffixes
 
 -- | Parse any expression suffix
 pPFExprSuffix :: AParser PFExprSuffix
-pPFExprSuffix = Call <$> parseArgs <<|>
-                MetaCall <$ pMTok Colon <*> pName <*> parseArgs <<|>
-                ExprIndex <$ pMTok LSquare <*> parseExpression <* pMTok RSquare <<|>
-                DotIndex <$ pMTok Dot <*> pName
+pPFExprSuffix = pPFExprCallSuffix <<|> pPFExprIndexSuffix
+
+-- | Parse an indexing expression suffix
+pPFExprCallSuffix :: AParser PFExprSuffix
+pPFExprCallSuffix = Call <$> parseArgs <<|>
+                    MetaCall <$ pMTok Colon <*> pName <*> parseArgs
+
+-- | Parse an indexing expression suffix
+pPFExprIndexSuffix :: AParser PFExprSuffix
+pPFExprIndexSuffix = ExprIndex <$ pMTok LSquare <*> parseExpression <* pMTok RSquare <<|>
+                     DotIndex <$ pMTok Dot <*> pName
 
 -- | Function calls are prefix expressions, but the last suffix MUST be either a function call or a metafunction call
 pFunctionCall :: AParser PrefixExp
 pFunctionCall = pPrefixExp suffixes
     where
-        suffixes = (:) <$> pPFExprSuffix <*> suffixes <|>
-                   (flip (:) [] . Call) <$> parseArgs <|>
-                   (\n a -> [MetaCall n a]) <$ pMTok Colon <*> pName <*> parseArgs
+        suffixes = concat <$> pSome ((\ix c -> ix ++ [c]) <$> pSome pPFExprIndexSuffix <*> pPFExprCallSuffix <<|>
+                                     (\c -> [c])        <$> pPFExprCallSuffix)
 
+-- | single variable. Note: definition differs from reference to circumvent the left recursion
+-- var ::= Name [{PFExprSuffix}* indexation] | '(' exp ')' {PFExprSuffix}* indexation
+-- where "{PFExprSuffix}* indexation" is any arbitrary sequence of prefix expression suffixes that end with an indexation
+parseVar :: AParser PrefixExp
+parseVar = pPrefixExp suffixes
+    where
+        suffixes = concat <$> pMany ((\c ix -> c ++ [ix]) <$> pSome pPFExprCallSuffix <*> pPFExprIndexSuffix <<|>
+                                     (\ix -> [ix])      <$> pPFExprIndexSuffix)
 
 -- | Arguments of a function call (including brackets)
 parseArgs :: AParser Args
@@ -295,18 +302,12 @@ parseArgs = ListArgs <$ pMTok LRound <*> opt parseExpressionList [] <* pMTok RRo
 
 -- | Table constructor
 parseTableConstructor :: AParser [Field]
-parseTableConstructor = pMTok LCurly *> (parseFieldList <<|> pReturn []) <* pMTok RCurly
+parseTableConstructor = pMTok LCurly *> parseFieldList <* pMTok RCurly
 
 -- | A list of table entries
 -- Grammar: field {separator field} [separator]
 parseFieldList :: AParser [Field]
-parseFieldList = parseField <**> (
-                    parseFieldSep <**> (
-                        (\flist _ field -> field : flist) <$> parseFieldList <<|>
-                        pReturn (\_ f -> [f])
-                    ) <<|>
-                    pReturn (: [])
-                )
+parseFieldList = pListSep parseFieldSep parseField <* opt parseFieldSep undefined
 
 -- | A field in a table
 parseField :: AParser Field
