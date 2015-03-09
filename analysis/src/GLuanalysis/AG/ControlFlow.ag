@@ -6,3 +6,38 @@ import GLua.AG.AST
 import Text.PrettyPrint
 }
 include "../../GLua/AG/AST.ag"
+
+-- Output type of this AG
+-- Simple statement
+--
+-- TODO: moet nog uitgebreid worden om recursief te gaan
+{
+data SStat =
+    SSemicolon |
+    SDef |
+    SLocDef |
+    SFuncCall |
+    SLabel |
+    SBreak |
+    SContinue |
+    SGoto |
+    SDo |
+    SRepeat |
+    SIf |
+    SNFor |
+    SGFor |
+    SFunc |
+    [SStat]
+}
+
+
+attr AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp
+    syn stats :: {[SStat]}
+
+sem Block | Block lhs.stats = @stats.stats ++ @ret.stats
+
+sem MStat | MStat lhs.stats = @stats.stats
+
+sem Stat
+    | ASemicolon    lhs.stats = SSemicolon
+    | Def           lhs.stats = SDef
