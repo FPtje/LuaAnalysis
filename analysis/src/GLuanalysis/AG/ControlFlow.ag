@@ -72,8 +72,10 @@ sem Else
 sem AReturn
     | AReturn    lhs.nodes       = [(@lhs.number, NReturn @loc.copy)]
                  lhs.controlflow = empty
+                 lhs.number      = @lhs.number
     | NoReturn   lhs.nodes       = []-- TODO: Return statement
                  lhs.controlflow = empty
+                 lhs.number      = @lhs.number - 1
 
 sem AST |
 	AST lhs.controlflow = mkGraph @chunk.nodes @chunk.edges
@@ -86,9 +88,6 @@ sem Block | Block lhs.controlflow = @stats.controlflow -- fix return address?
 				  ret.number = @stats.number
                   lhs.firstNumber = fst . head $ @loc.nodes
                   lhs.lastNumber  = fst . last $ @loc.nodes
-
-sem AReturn | AReturn   lhs.number = @lhs.number
-            | NoReturn  lhs.number = @lhs.number - 1
 
 sem MStat | MStat lhs.controlflow = @stat.controlflow
 
