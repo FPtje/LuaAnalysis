@@ -3,6 +3,7 @@ module {GLuanalysis.AG.ControlFlow}{}{}
 imports
 {
 import GLua.AG.AST
+import qualified Data.Map as M
 import Data.Graph.Inductive.Graph
 import Data.Graph.Inductive.PatriciaTree
 import qualified GLua.AG.PrettyPrint as PP
