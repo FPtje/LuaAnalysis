@@ -58,209 +58,209 @@ attr ElseIf ElseIfList Else
     chn failNumber :: Int -- Where the last elseif is
 
 sem MStatList
-    | Cons       lhs.nodes       = @hd.nodes ++ @tl.nodes
-                 hd.number       = @lhs.number
-                 tl.number       = @hd.number
-                 lhs.number      = @tl.number
-                 lhs.edges       = @hd.edges ++ if null @tl.nodes then [] else buildEdgesTo @tl.firstNumber @hd.lastNumbers ++ @tl.edges
-                 loc.firstNumber = @hd.firstNumber
+    | Cons       lhs.nodes                  = @hd.nodes ++ @tl.nodes
+                 hd.number                  = @lhs.number
+                 tl.number                  = @hd.number
+                 lhs.number                 = @tl.number
+                 lhs.edges                  = @hd.edges ++ if null @tl.nodes then [] else buildEdgesTo @tl.firstNumber @hd.lastNumbers ++ @tl.edges
+                 loc.firstNumber            = @hd.firstNumber
 
                  -- Use the last number of the head when last element
-                 loc.lastNumbers = if null @tl.lastNumbers then @hd.lastNumbers else @tl.lastNumbers
-    | Nil        lhs.controlflow = empty
-                 lhs.number      = @lhs.number
-                 lhs.nodes       = []
-                 loc.firstNumber = @lhs.firstNumber
-                 loc.lastNumbers = []
+                 loc.lastNumbers            = if null @tl.lastNumbers then @hd.lastNumbers else @tl.lastNumbers
+    | Nil        lhs.controlflow            = empty
+                 lhs.number                 = @lhs.number
+                 lhs.nodes                  = []
+                 loc.firstNumber            = @lhs.firstNumber
+                 loc.lastNumbers            = []
 
 sem ElseIf
-    | Tuple      lhs.controlflow = empty
-                 lhs.number      = @x2.number
-                 lhs.firstNumber = @lhs.number
-                 lhs.lastNumbers = @x2.lastNumbers -- TODO: handle condition failed edges separately
-                 x2.number       = @lhs.number + 1
-                 lhs.nodes       = [(@lhs.number, NElseIf @loc.copy)] ++ @x2.nodes
-                 lhs.edges       = (@lhs.number, @x2.firstNumber, True) :
-                                   (if @lhs.failNumber == -1 then [] else [(@lhs.number, @lhs.failNumber, False)]) ++ -- failed edge
-                                   @x2.edges
-                 lhs.failNumber  = @lhs.number
+    | Tuple      lhs.controlflow            = empty
+                 lhs.number                 = @x2.number
+                 lhs.firstNumber            = @lhs.number
+                 lhs.lastNumbers            = @x2.lastNumbers -- TODO: handle condition failed edges separately
+                 x2.number                  = @lhs.number + 1
+                 lhs.nodes                  = [(@lhs.number, NElseIf @loc.copy)] ++ @x2.nodes
+                 lhs.edges                  = (@lhs.number, @x2.firstNumber, True) :
+                                              (if @lhs.failNumber == -1 then [] else [(@lhs.number, @lhs.failNumber, False)]) ++ -- failed edge
+                                              @x2.edges
+                 lhs.failNumber             = @lhs.number
 
 sem ElseIfList
-    | Cons       lhs.controlflow = empty
-                 lhs.lastNumbers = @hd.lastNumbers ++ @tl.lastNumbers
-                 lhs.failNumber  = if @tl.failNumber == -1 then @hd.failNumber else @tl.failNumber
-                 hd.failNumber   = @tl.firstNumber
-                 lhs.firstNumber = @hd.firstNumber
-    | Nil        lhs.controlflow = empty
-                 lhs.lastNumbers = []
-                 lhs.firstNumber = -1
-                 lhs.failNumber  = -1
+    | Cons       lhs.controlflow            = empty
+                 lhs.lastNumbers            = @hd.lastNumbers ++ @tl.lastNumbers
+                 lhs.failNumber             = if @tl.failNumber == -1 then @hd.failNumber else @tl.failNumber
+                 hd.failNumber              = @tl.firstNumber
+                 lhs.firstNumber            = @hd.firstNumber
+    | Nil        lhs.controlflow            = empty
+                 lhs.lastNumbers            = []
+                 lhs.firstNumber            = -1
+                 lhs.failNumber             = -1
 
 sem Else
-    | Just       lhs.controlflow = empty
-                 lhs.number      = @just.number
-                 just.number     = @lhs.number
-                 lhs.firstNumber = @lhs.number
-                 lhs.lastNumbers = @just.lastNumbers
-                                   -- make edge between condition failed of last (else)if to else
-                 lhs.edges       = (@lhs.failNumber, @lhs.number, False) :
-                                   @just.edges
-    | Nothing    lhs.controlflow = empty
-                 lhs.lastNumbers = []
+    | Just       lhs.controlflow            = empty
+                 lhs.number                 = @just.number
+                 just.number                = @lhs.number
+                 lhs.firstNumber            = @lhs.number
+                 lhs.lastNumbers            = @just.lastNumbers
+                                              -- make edge between condition failed of last (else)if to else
+                 lhs.edges                  = (@lhs.failNumber, @lhs.number, False) :
+                                              @just.edges
+    | Nothing    lhs.controlflow            = empty
+                 lhs.lastNumbers            = []
 
 sem AReturn
-    | AReturn    lhs.nodes       = [(@lhs.number, NReturn @loc.copy)]
-                 lhs.controlflow = empty
-                 lhs.number      = @lhs.number
-    | NoReturn   lhs.nodes       = []-- TODO: Return statement
-                 lhs.controlflow = empty
-                 lhs.number      = @lhs.number - 1
+    | AReturn    lhs.nodes                  = [(@lhs.number, NReturn @loc.copy)]
+                 lhs.controlflow            = empty
+                 lhs.number                 = @lhs.number
+    | NoReturn   lhs.nodes                  = []-- TODO: Return statement
+                 lhs.controlflow            = empty
+                 lhs.number                 = @lhs.number - 1
 
 sem AST |
     AST lhs.controlflow = mkGraph @chunk.nodes @chunk.edges
         chunk.number = 1
 
-sem Block | Block lhs.controlflow = @stats.controlflow -- fix return address?
-                  loc.nodes       = @stats.nodes ++ @ret.nodes
-                  lhs.edges       = @stats.edges
-                  lhs.number      = @ret.number + 1
-                  ret.number      = @stats.number
-                  lhs.firstNumber = @stats.firstNumber
-                  lhs.lastNumbers = @stats.lastNumbers
+sem Block | Block lhs.controlflow           = @stats.controlflow -- fix return address?
+                  loc.nodes                 = @stats.nodes ++ @ret.nodes
+                  lhs.edges                 = @stats.edges
+                  lhs.number                = @ret.number + 1
+                  ret.number                = @stats.number
+                  lhs.firstNumber           = @stats.firstNumber
+                  lhs.lastNumbers           = @stats.lastNumbers
 
-sem MStat | MStat lhs.controlflow = @stat.controlflow
+sem MStat | MStat lhs.controlflow           = @stat.controlflow
 
 
-sem Stat    | ASemicolon lhs.controlflow = empty
-                         loc.firstNumber = @lhs.number
-                         loc.lastNumbers = [(@lhs.number, True)]
+sem Stat    | ASemicolon lhs.controlflow    = empty
+                         loc.firstNumber    = @lhs.number
+                         loc.lastNumbers    = [(@lhs.number, True)]
 
-            | Def        lhs.controlflow = empty
-                         lhs.number      = @lhs.number + 1
-                         loc.firstNumber = @lhs.number
-                         loc.lastNumbers = [(@lhs.number, True)]
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
+            | Def        lhs.controlflow    = empty
+                         lhs.number         = @lhs.number + 1
+                         loc.firstNumber    = @lhs.number
+                         loc.lastNumbers    = [(@lhs.number, True)]
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)]
 
-            | LocDef     lhs.controlflow = empty
-                         lhs.number      = @lhs.number + 1
-                         loc.firstNumber = @lhs.number
-                         loc.lastNumbers = [(@lhs.number, True)]
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)]
+            | LocDef     lhs.controlflow    = empty
+                         lhs.number         = @lhs.number + 1
+                         loc.firstNumber    = @lhs.number
+                         loc.lastNumbers    = [(@lhs.number, True)]
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)]
 
-            | AFuncCall  lhs.controlflow = empty
-                         lhs.number      = @lhs.number + 1
-                         loc.firstNumber = @lhs.number
-                         loc.lastNumbers = [(@lhs.number, True)]
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] -- todo: function calls
+            | AFuncCall  lhs.controlflow    = empty
+                         lhs.number         = @lhs.number + 1
+                         loc.firstNumber    = @lhs.number
+                         loc.lastNumbers    = [(@lhs.number, True)]
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] -- todo: function calls
 
-            | ALabel     lhs.controlflow = empty
-                         lhs.number      = @lhs.number + 1
-                         loc.firstNumber = @lhs.number
-                         loc.lastNumbers = [(@lhs.number, True)]
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] -- TODO: remove label from nodes and create label environment instead
+            | ALabel     lhs.controlflow    = empty
+                         lhs.number         = @lhs.number + 1
+                         loc.firstNumber    = @lhs.number
+                         loc.lastNumbers    = [(@lhs.number, True)]
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] -- TODO: remove label from nodes and create label environment instead
 
-            | ABreak     lhs.controlflow = empty
-                         lhs.number      = @lhs.number + 1
-                         loc.firstNumber = @lhs.number
-                         loc.lastNumbers = [(@lhs.number, True)]
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] -- TODO: remove break from nodes and create edges to end of deepest loop
+            | ABreak     lhs.controlflow    = empty
+                         lhs.number         = @lhs.number + 1
+                         loc.firstNumber    = @lhs.number
+                         loc.lastNumbers    = [(@lhs.number, True)]
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] -- TODO: remove break from nodes and create edges to end of deepest loop
 
-            | AContinue  lhs.controlflow = empty
-                         lhs.number      = @lhs.number + 1
-                         loc.firstNumber = @lhs.number
-                         loc.lastNumbers = [(@lhs.number, True)]
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] -- TODO: remove continue from nodes and create edges to start of deepest loop
+            | AContinue  lhs.controlflow    = empty
+                         lhs.number         = @lhs.number + 1
+                         loc.firstNumber    = @lhs.number
+                         loc.lastNumbers    = [(@lhs.number, True)]
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] -- TODO: remove continue from nodes and create edges to start of deepest loop
 
-            | AGoto      lhs.controlflow = empty
-                         lhs.number      = @lhs.number + 1
-                         loc.firstNumber = @lhs.number
-                         loc.lastNumbers = [(@lhs.number, True)]
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] -- TODO: remove label from nodes and create edges from label environment instead
+            | AGoto      lhs.controlflow    = empty
+                         lhs.number         = @lhs.number + 1
+                         loc.firstNumber    = @lhs.number
+                         loc.lastNumbers    = [(@lhs.number, True)]
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] -- TODO: remove label from nodes and create edges from label environment instead
 
-            | ADo        lhs.controlflow = empty
-                         lhs.number      = @body.number
-                         body.number     = @lhs.number
-                         loc.firstNumber = @body.firstNumber
-                         loc.lastNumbers = @body.lastNumbers
-                         lhs.nodes       = @body.nodes
-                         lhs.edges       = @body.edges
+            | ADo        lhs.controlflow    = empty
+                         lhs.number         = @body.number
+                         body.number        = @lhs.number
+                         loc.firstNumber    = @body.firstNumber
+                         loc.lastNumbers    = @body.lastNumbers
+                         lhs.nodes          = @body.nodes
+                         lhs.edges          = @body.edges
 
-            | AWhile     lhs.controlflow = empty
-                         lhs.number      = @body.number
-                         body.number     = @lhs.number + 1
-                         loc.firstNumber = @lhs.number
-                         loc.lastNumbers = [(@lhs.number, False)] -- TODO: Add break labels here?
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
-                         lhs.edges       = (@loc.firstNumber, @body.firstNumber, True) :
-                                           buildEdgesTo @lhs.number @body.lastNumbers ++
-                                           @body.edges
+            | AWhile     lhs.controlflow    = empty
+                         lhs.number         = @body.number
+                         body.number        = @lhs.number + 1
+                         loc.firstNumber    = @lhs.number
+                         loc.lastNumbers    = [(@lhs.number, False)] -- TODO: Add break labels here?
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+                         lhs.edges          = (@loc.firstNumber, @body.firstNumber, True) :
+                                              buildEdgesTo @lhs.number @body.lastNumbers ++
+                                              @body.edges
 
-            | ARepeat    lhs.controlflow = empty
-                         lhs.number      = @body.number
-                         body.number     = @lhs.number + 1
-                         loc.firstNumber = @body.firstNumber
-                         loc.lastNumbers = [(@lhs.number, False)] -- TODO: add breaks here?
-                         lhs.nodes       = @body.nodes ++ [(@lhs.number, NStat @loc.copy)]
-                         lhs.edges       = (@lhs.number, @body.firstNumber, True) :
-                                           buildEdgesTo @lhs.number @body.lastNumbers ++
-                                           @body.edges
+            | ARepeat    lhs.controlflow    = empty
+                         lhs.number         = @body.number
+                         body.number        = @lhs.number + 1
+                         loc.firstNumber    = @body.firstNumber
+                         loc.lastNumbers    = [(@lhs.number, False)] -- TODO: add breaks here?
+                         lhs.nodes          = @body.nodes ++ [(@lhs.number, NStat @loc.copy)]
+                         lhs.edges          = (@lhs.number, @body.firstNumber, True) :
+                                              buildEdgesTo @lhs.number @body.lastNumbers ++
+                                              @body.edges
 
-            | AIf        lhs.controlflow = empty
-                         body.number     = @lhs.number + 1
-                         elifs.number    = @body.number
-                         elifs.failNumber= -1
+            | AIf        lhs.controlflow    = empty
+                         body.number        = @lhs.number + 1
+                         elifs.number       = @body.number
+                         elifs.failNumber   = -1
                          -- link condition failed of either last elseif or the if to the else:
-                         els.failNumber  = if @loc.elifExists then @elifs.failNumber else @lhs.number
-                         els.number      = @elifs.number
-                         lhs.number      = @els.number
-                         loc.firstNumber = @lhs.number
-                         loc.failNumber  = if @loc.elifExists then @elifs.failNumber else @lhs.number
-                         loc.elifExists  = @elifs.firstNumber /= -1
-                         loc.elsExists   = not . null $ @els.lastNumbers
-                         lhs.lastNumbers = -- Condition failed edges of last (else)if, if no else exists
-                                           (if not @loc.elsExists then
-                                             [(@loc.failNumber, False)]
-                                            else []) ++
-                                           -- The ends of all the blocks of the body, elseifs and elses
-                                           @body.lastNumbers ++ @elifs.lastNumbers ++ @els.lastNumbers
-                         loc.nodes       = (@lhs.number, NStat @loc.copy) :
-                                           @body.nodes ++
-                                           @elifs.nodes ++
-                                           @els.nodes
-                         lhs.edges       = -- Condition fail edges:
-                                           -- make edge between condition failed of if to elseifs if they exist
-                                           (if @loc.elifExists then [(@lhs.number, @elifs.firstNumber, False)] else []) ++
-                                           [(@lhs.number, @body.firstNumber, True)] ++
-                                           @body.edges ++ @elifs.edges ++ @els.edges
+                         els.failNumber     = if @loc.elifExists then @elifs.failNumber else @lhs.number
+                         els.number         = @elifs.number
+                         lhs.number         = @els.number
+                         loc.firstNumber    = @lhs.number
+                         loc.failNumber     = if @loc.elifExists then @elifs.failNumber else @lhs.number
+                         loc.elifExists     = @elifs.firstNumber /= -1
+                         loc.elsExists      = not . null $ @els.lastNumbers
+                         lhs.lastNumbers    = -- Condition failed edges of last (else)if, if no else exists
+                                              (if not @loc.elsExists then
+                                                [(@loc.failNumber, False)]
+                                               else []) ++
+                                              -- The ends of all the blocks of the body, elseifs and elses
+                                              @body.lastNumbers ++ @elifs.lastNumbers ++ @els.lastNumbers
+                         loc.nodes          = (@lhs.number, NStat @loc.copy) :
+                                              @body.nodes ++
+                                              @elifs.nodes ++
+                                              @els.nodes
+                         lhs.edges          = -- Condition fail edges:
+                                              -- make edge between condition failed of if to elseifs if they exist
+                                              (if @loc.elifExists then [(@lhs.number, @elifs.firstNumber, False)] else []) ++
+                                              [(@lhs.number, @body.firstNumber, True)] ++
+                                              @body.edges ++ @elifs.edges ++ @els.edges
 
-            | ANFor      lhs.controlflow = empty
-                         body.number     = @lhs.number + 1
-                         lhs.number      = @body.number
-                         loc.firstNumber = @lhs.number
-                         loc.lastNumbers = [(@lhs.number, False)] -- End of for loop -- TODO: breaks here?
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
-                         lhs.edges       = (@loc.firstNumber, @body.firstNumber, True) :
-                                           buildEdgesTo @lhs.number @body.lastNumbers ++
-                                           @body.edges
+            | ANFor      lhs.controlflow    = empty
+                         body.number        = @lhs.number + 1
+                         lhs.number         = @body.number
+                         loc.firstNumber    = @lhs.number
+                         loc.lastNumbers    = [(@lhs.number, False)] -- End of for loop -- TODO: breaks here?
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+                         lhs.edges          = (@loc.firstNumber, @body.firstNumber, True) :
+                                              buildEdgesTo @lhs.number @body.lastNumbers ++
+                                              @body.edges
 
-            | AGFor      lhs.controlflow = empty
-                         body.number     = @lhs.number + 1
-                         lhs.number      = @body.number
-                         loc.firstNumber = @lhs.number
-                         loc.lastNumbers = [(@lhs.number, False)] -- End of for loop -- TODO: breaks here?
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
-                         lhs.edges       = (@loc.firstNumber, @body.firstNumber, True) :
-                                           buildEdgesTo @lhs.number @body.lastNumbers ++
-                                           @body.edges -- TODO: annotate fail edge (now created by sequence) with False or something?
+            | AGFor      lhs.controlflow    = empty
+                         body.number        = @lhs.number + 1
+                         lhs.number         = @body.number
+                         loc.firstNumber    = @lhs.number
+                         loc.lastNumbers    = [(@lhs.number, False)] -- End of for loop -- TODO: breaks here?
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+                         lhs.edges          = (@loc.firstNumber, @body.firstNumber, True) :
+                                              buildEdgesTo @lhs.number @body.lastNumbers ++
+                                              @body.edges -- TODO: annotate fail edge (now created by sequence) with False or something?
 
-            | AFunc      lhs.controlflow = empty -- TODO: functions
-                         lhs.number      = @lhs.number + 1
-                         loc.firstNumber = @lhs.number
-                         loc.lastNumbers = [(@lhs.number, True)]
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+            | AFunc      lhs.controlflow    = empty -- TODO: functions
+                         lhs.number         = @lhs.number + 1
+                         loc.firstNumber    = @lhs.number
+                         loc.lastNumbers    = [(@lhs.number, True)]
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
 
-            | ALocFunc   lhs.controlflow = empty
-                         lhs.number      = @lhs.number + 1
-                         loc.firstNumber = @lhs.number
-                         loc.lastNumbers = [(@lhs.number, True)]
-                         lhs.nodes       = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+            | ALocFunc   lhs.controlflow    = empty
+                         lhs.number         = @lhs.number + 1
+                         loc.firstNumber    = @lhs.number
+                         loc.lastNumbers    = [(@lhs.number, True)]
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
