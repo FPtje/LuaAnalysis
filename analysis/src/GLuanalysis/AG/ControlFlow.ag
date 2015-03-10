@@ -46,6 +46,7 @@ buildEdgesTo end es = map f es where
 
 attr Block MStat Stat MStatList AReturn ElseIf ElseIfList Else
     chn number :: Int
+	inh cont :: Int
 
 attr AST
     syn controlflow :: {AnalysisGraph}
@@ -53,6 +54,7 @@ attr AST
 attr AST Block MStat Stat MStatList ElseIf ElseIfList Else AReturn
     syn nodes use {++} {[]} :: {[ANode]}
     syn edges use {++} {[]} :: {[AEdge]}
+	syn breaks use {++} {[]} ::  {[(Int, EdgeLabel)]}
 
     chn firstNumber :: Int
     chn lastNumbers :: {[(Int, EdgeLabel)]}
@@ -129,6 +131,7 @@ sem AST |
     AST lhs.controlflow = mkGraph @chunk.nodes @chunk.edges
         chunk.number = 1
         chunk.labEnvI = @chunk.labEnvS
+		chunk.cont = -1
 
 sem Block | Block loc.nodes                 = @stats.nodes ++ @ret.nodes
                   lhs.edges                 = @stats.edges
@@ -166,12 +169,14 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
 
             | ABreak     lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, True)]
+                         loc.lastNumbers    = [] -- [(@lhs.number, True)]
+                         lhs.breaks 	 	= [(@lhs.number, True)]						 
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] -- TODO: remove break from nodes and create edges to end of deepest loop
 
             | AContinue  lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, True)]
+                         loc.lastNumbers    = [] -- [(@lhs.number, True)]
+                         lhs.edges          = [(@lhs.number,@lhs.cont, True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] -- TODO: remove continue from nodes and create edges to start of deepest loop
 
             | AGoto      lhs.number         = @lhs.number + 1
@@ -189,7 +194,8 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
             | AWhile     lhs.number         = @body.number
                          body.number        = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, False)] -- TODO: Add break labels here?
+                         body.cont 			= @lhs.number						 
+                         loc.lastNumbers    = [(@lhs.number, False)] ++ @body.breaks  -- TODO: Add break labels here?
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          lhs.edges          = (@loc.firstNumber, @body.firstNumber, True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
@@ -198,7 +204,8 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
             | ARepeat    lhs.number         = @body.number
                          body.number        = @lhs.number + 1
                          loc.firstNumber    = @body.firstNumber
-                         loc.lastNumbers    = [(@lhs.number, False)] -- TODO: add breaks here?
+                         body.cont 			= @lhs.number	
+                         loc.lastNumbers    = [(@lhs.number, False)] ++ @body.breaks -- TODO: add breaks here?
                          lhs.nodes          = @body.nodes ++ [(@lhs.number, NStat @loc.copy)]
                          lhs.edges          = (@lhs.number, @body.firstNumber, True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
@@ -234,7 +241,8 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
             | ANFor      body.number        = @lhs.number + 1
                          lhs.number         = @body.number
                          loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, False)] -- End of for loop -- TODO: breaks here?
+                         body.cont 			= @lhs.number	
+                         loc.lastNumbers    = [(@lhs.number, False)] ++ @body.breaks -- End of for loop -- TODO: breaks here?
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          lhs.edges          = (@loc.firstNumber, @body.firstNumber, True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
@@ -243,7 +251,8 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
             | AGFor      body.number        = @lhs.number + 1
                          lhs.number         = @body.number
                          loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, False)] -- End of for loop -- TODO: breaks here?
+                         body.cont 			= @lhs.number	
+                         loc.lastNumbers    = [(@lhs.number, False)] ++ @body.breaks  -- End of for loop -- TODO: breaks here?
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          lhs.edges          = (@loc.firstNumber, @body.firstNumber, True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
