@@ -54,6 +54,9 @@ attr AST Block MStat Stat MStatList ElseIf ElseIfList Else AReturn
 attr AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else AReturn
     syn copy :: self
 
+attr ElseIf ElseIfList Else
+    chn failNumber :: Int -- Where the last elseif is
+
 sem MStatList
     | Cons       lhs.nodes       = @hd.nodes ++ @tl.nodes
                  hd.number       = @lhs.number
@@ -78,13 +81,20 @@ sem ElseIf
                  x2.number       = @lhs.number + 1
                  lhs.nodes       = [(@lhs.number, NElseIf @loc.copy)] ++ @x2.nodes
                  lhs.edges       = (@lhs.number, @x2.firstNumber, True) :
+                                   (if @lhs.failNumber == -1 then [] else [(@lhs.number, @lhs.failNumber, False)]) ++ -- failed edge
                                    @x2.edges
+                 lhs.failNumber  = @lhs.number
 
 sem ElseIfList
     | Cons       lhs.controlflow = empty
                  lhs.lastNumbers = @hd.lastNumbers ++ @tl.lastNumbers
+                 lhs.failNumber  = if @tl.failNumber == -1 then @hd.failNumber else @tl.failNumber
+                 hd.failNumber   = @tl.firstNumber
+                 lhs.firstNumber = @hd.firstNumber
     | Nil        lhs.controlflow = empty
                  lhs.lastNumbers = []
+                 lhs.firstNumber = -1
+                 lhs.failNumber  = -1
 
 sem Else
     | Just       lhs.controlflow = empty
@@ -92,6 +102,9 @@ sem Else
                  just.number     = @lhs.number
                  lhs.firstNumber = @lhs.number
                  lhs.lastNumbers = @just.lastNumbers
+                                   -- make edge between condition failed of last (else)if to else
+                 lhs.edges       = (@lhs.failNumber, @lhs.number, False) :
+                                   @just.edges
     | Nothing    lhs.controlflow = empty
                  lhs.lastNumbers = []
 
@@ -195,17 +208,29 @@ sem Stat    | ASemicolon lhs.controlflow = empty
             | AIf        lhs.controlflow = empty
                          body.number     = @lhs.number + 1
                          elifs.number    = @body.number
+                         elifs.failNumber= -1
+                         -- link condition failed of either last elseif or the if to the else:
+                         els.failNumber  = if @loc.elifExists then @elifs.failNumber else @lhs.number
                          els.number      = @elifs.number
                          lhs.number      = @els.number
                          loc.firstNumber = @lhs.number
-                         lhs.lastNumbers = -- TODO: condition failed edges of all elseifs, if no else exists
+                         loc.failNumber  = if @loc.elifExists then @elifs.failNumber else @lhs.number
+                         loc.elifExists  = @elifs.firstNumber /= -1
+                         loc.elsExists   = not . null $ @els.lastNumbers
+                         lhs.lastNumbers = -- Condition failed edges of last (else)if, if no else exists
+                                           (if not @loc.elsExists then
+                                             [(@loc.failNumber, False)]
+                                            else []) ++
+                                           -- The ends of all the blocks of the body, elseifs and elses
                                            @body.lastNumbers ++ @elifs.lastNumbers ++ @els.lastNumbers
                          loc.nodes       = (@lhs.number, NStat @loc.copy) :
                                            @body.nodes ++
                                            @elifs.nodes ++
                                            @els.nodes
-                         lhs.edges       = -- TODO: condition fail edges
-                                           (@lhs.number, @body.firstNumber, True) :
+                         lhs.edges       = -- Condition fail edges:
+                                           -- make edge between condition failed of if to elseifs if they exist
+                                           (if @loc.elifExists then [(@lhs.number, @elifs.firstNumber, False)] else []) ++
+                                           [(@lhs.number, @body.firstNumber, True)] ++
                                            @body.edges ++ @elifs.edges ++ @els.edges
 
             | ANFor      lhs.controlflow = empty
