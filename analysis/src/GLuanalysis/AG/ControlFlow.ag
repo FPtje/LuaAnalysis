@@ -25,6 +25,9 @@ type ANode = LNode NodeThing
 type AEdge = LEdge EdgeLabel
 type AnalysisGraph = Gr NodeThing EdgeLabel
 
+-- Environment of where which lables have
+type LabelEnv = M.Map String Int
+
 
 nextUnique :: Int -> (Int, Int)
 nextUnique u = (u+1, u)
@@ -58,7 +61,12 @@ attr AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Arg
     syn copy :: self
 
 attr ElseIf ElseIfList Else
-    chn failNumber :: Int -- Where the last elseif is
+    chn failNumber :: Int -- Where the last (else)if is
+
+attr Block MStat Stat ElseIf ElseIfList Else MStatList
+    -- Label environments are linked in AST level to force it to be fully generated
+    syn labEnvS use {M.union} {M.empty} :: {LabelEnv}
+    inh labEnvI :: {LabelEnv}
 
 sem MStatList
     | Cons       lhs.nodes                  = @hd.nodes ++ @tl.nodes
@@ -120,6 +128,7 @@ sem AReturn
 sem AST |
     AST lhs.controlflow = mkGraph @chunk.nodes @chunk.edges
         chunk.number = 1
+        chunk.labEnvI = @chunk.labEnvS
 
 sem Block | Block loc.nodes                 = @stats.nodes ++ @ret.nodes
                   lhs.edges                 = @stats.edges
@@ -150,6 +159,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] -- todo: function calls
 
             | ALabel     lhs.number         = @lhs.number + 1
+                         lhs.labEnvS        = M.singleton (tokenLabel @lbl) (@lhs.number)
                          loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] -- TODO: remove label from nodes and create label environment instead
@@ -165,8 +175,8 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] -- TODO: remove continue from nodes and create edges to start of deepest loop
 
             | AGoto      lhs.number         = @lhs.number + 1
-                         loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, True)]
+                         loc.firstNumber    = M.findWithDefault (error "couldn't find token") (tokenLabel @lbl) @lhs.labEnvI
+                         loc.lastNumbers    = []
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] -- TODO: remove label from nodes and create edges from label environment instead
 
             | ADo        lhs.number         = @body.number
