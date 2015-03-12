@@ -17,6 +17,7 @@ import System.IO
 import System.Exit
 import Control.Monad
 
+import Reachable
 
 main = putStrLn "Hello World"
 
@@ -58,6 +59,28 @@ run file =do
 		putStrLn "Pretty printed code:"
 		putStrLn . prettyprint . fst $ ast
 		
+test file = do
+		contents <- readFile file
+
+		-- Lex the file
+		let lex = execParseTokens contents
+		let tokens = fst lex
+		let errors = snd lex
+
+		unless (null errors) $ do
+			mapM_ print errors
+			-- Attempt to fix errors when asked
+			when (True) $ do
+				writeFile file . concatMap show $ tokens
+				putStrLn "Success"
+				exitSuccess
+
+			exitWith (ExitFailure 1)
+
+		let ast = parseGLua tokens
+
+		putStrLn . prettify $ deptfirst (transformGraph . getGraph . fst $ ast) 1
+                
 viewGr file = do
 		contents <- readFile file
 
