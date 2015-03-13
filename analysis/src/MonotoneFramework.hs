@@ -33,16 +33,16 @@ mfp mf g@(gr, extremals) = iteration mf g workingList lblData where
 -- Performs monotone framework iterations
 iteration :: MF a -> AnalysisGraph -> WorkingList -> NodeLabels a -> NodeLabels a
 iteration _  _         []                  nl = nl
-iteration mf g@(gr, _) ((l, l', lbl) : xs) nl = if (consistent mf) transferred toNodeVal lbl then
+iteration mf g@(gr, _) ((l, l', lbl) : xs) nl = if consistent mf transferred toNodeVal lbl then
         iteration mf g xs nl -- Next iteration
     else
         iteration mf g newW newNl where
 
     fromNodeVal = nl M.! l -- A[l]
     toNodeVal   = nl M.! l' -- A[l']
-    transferred = (tf mf) fromNodeVal -- f_l(A[l])
+    transferred = tf mf fromNodeVal -- f_l(A[l])
 
     -- A[l'] := A[l'] ⨆ f_l(A[l]);
-    newNl = M.insert l' ((joinOp mf) toNodeVal transferred) nl
+    newNl = M.insert l' (joinOp mf toNodeVal transferred) nl
     -- forall l'' with (l', l'') ∈ F do W := (l', l'') : W;
     newW = out gr l'
