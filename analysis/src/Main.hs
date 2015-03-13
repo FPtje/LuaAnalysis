@@ -18,6 +18,7 @@ import System.Exit
 import Control.Monad
 
 import Reachable
+import LiveVariables
 
 main = putStrLn "Hello World"
 
@@ -79,7 +80,7 @@ test file = do
 
 		let ast = parseGLua tokens
 
-		putStrLn . prettify $ deptfirst (transformGraph . getGraph . fst $ ast) 1
+		putStrLn . prettify $ createKG ( getGraph . fst $ ast)
                 
 viewGr file = do
 		contents <- readFile file

@@ -31,7 +31,7 @@ data IntSign = Min | Nul | Pos
 data Bottom = Bottom
         deriving Show
         
--- TODO: Build in chaos algorithm or some sort of fixedpoint, do something properly with signs and assignments, refine the statements into expressions to be used.
+-- TODO: Build in chaos algorithm or some sort of fixedpoint, do something properly with signs and assignments, refine the statements into expressions to be usedde .
 
 -- | Transform the graph to a datatype we can use in our reachability analysis.
 transformGraph :: AnalysisGraph -> Gr NewNode EdgeLabel
