@@ -16,6 +16,7 @@ import System.Environment
 import System.IO
 import System.Exit
 import Control.Monad
+import MonotoneFramework
 
 import Reachable
 import LiveVariables
@@ -83,7 +84,7 @@ test file = do
 
 		let ast = parseGLua tokens
 
-		putStrLn . prettify $ createKG ( getGraph . fst $ ast)
+		putStrLn $ show $ mfp mFramework (getGraph . fst $ ast)
 
 viewGr file = do
 		contents <- readFile file

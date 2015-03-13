@@ -11,7 +11,7 @@ import Graphviz
 import GLua.AG.AST
 
 import Data.Char
-import Data.List (nub,(\\))
+import Data.List (union)
 
 import System.FilePath
 import System.Environment
@@ -19,6 +19,7 @@ import System.IO
 import System.Exit
 import Control.Monad
 import GLua.TokenTypes
+import MonotoneFramework
 
 type KillSet = [Token]
 type GenSet = [Token]
@@ -26,6 +27,12 @@ type GenSet = [Token]
 data LVNode = LV KillSet GenSet
         deriving Show
 
+mFramework :: MF [Token]
+mFramework = MF {joinOp=union,iota=[],bottom=[],consistent=subset,transfer=id}
+  
+subset :: Eq a => [a] -> [a] -> EdgeLabel -> Bool  
+subset = \ x y a -> and $ map (\z -> elem z y) x
+   
 createKG :: AnalysisGraph -> Gr LVNode EdgeLabel
 createKG g =    let nodes = labNodes . fst $ g
                     edges = labEdges . fst $ g
