@@ -27,13 +27,13 @@ data LVNode = LV KillSet GenSet
         deriving Show
 
 createKG :: AnalysisGraph -> Gr LVNode EdgeLabel
-createKG g =    let nodes = labNodes g
-                    edges = labEdges g
+createKG g =    let nodes = labNodes . fst $ g
+                    edges = labEdges . fst $ g
                     newnodes = let n' = map getSets nodes'
                                    nodes' = map (\(l,(NStat s)) -> s) nodes --wrong, but works for now
                                in zipWith (\(k,g) (l,_) -> (l , LV k g ) ) n' nodes
                 in mkGraph newnodes edges
-                
+
 getSets :: Stat -> (KillSet,GenSet)
 getSets s = case s of
             (Def v) -> let declvars = map fst v
@@ -41,7 +41,7 @@ getSets s = case s of
                            usedvars' = map (\(MExpr _ e) -> e) usedvars
                            declvars' = map (\(PFVar (MToken _ g) _) -> g) declvars --lets assume no function calls for now
                        in (declvars', concatMap findUsedVars usedvars') --deal with local vars
-                       
+
 findUsedVars :: Expr -> [Token]
 findUsedVars e = case e of
                  (APrefixExpr pre) -> findUsedVars'' pre
@@ -51,3 +51,4 @@ findUsedVars e = case e of
         where  findUsedVars' (MExpr _ e1) = findUsedVars e1
                findUsedVars'' (PFVar (MToken _ g) _) = [g]
                findUsedVars'' (ExprVar e _) = findUsedVars' e
+               
