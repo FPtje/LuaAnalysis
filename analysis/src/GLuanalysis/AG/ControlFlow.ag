@@ -84,6 +84,16 @@ attr Block MStat Stat ElseIf ElseIfList Else MStatList
     syn labEnvS use {M.union} {M.empty} :: {LabelEnv}
     inh labEnvI :: {LabelEnv}
 
+sem AST |
+    AST lhs.controlflow = mkGraph @chunk.nodes @loc.edges
+        loc.edges = if @lhs.reversed then map (\(x,y,z) -> (y,x,z)) @chunk.edges else @chunk.edges
+        chunk.number = 1
+        chunk.labEnvI = @chunk.labEnvS
+        chunk.cont = -1
+
+        chunk.localFnEnv = M.empty
+        chunk.globalFnEnv = M.empty
+
 sem MStatList
     | Cons       lhs.nodes                  = @hd.nodes ++ @tl.nodes
                  hd.number                  = @lhs.number
@@ -140,16 +150,6 @@ sem AReturn
                  lhs.number                 = @lhs.number
     | NoReturn   lhs.nodes                  = []-- TODO: Return statement
                  lhs.number                 = @lhs.number - 1
-
-sem AST |
-    AST lhs.controlflow = mkGraph @chunk.nodes @loc.edges
-        loc.edges = if @lhs.reversed then map (\(x,y,z) -> (y,x,z)) @chunk.edges else @chunk.edges
-        chunk.number = 1
-        chunk.labEnvI = @chunk.labEnvS
-        chunk.cont = -1
-
-        chunk.localFnEnv = M.empty
-        chunk.globalFnEnv = M.empty
 
 sem Block | Block loc.nodes                 = @stats.nodes ++ @ret.nodes
                   lhs.edges                 = @stats.edges
