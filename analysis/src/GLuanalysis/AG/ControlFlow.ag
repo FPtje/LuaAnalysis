@@ -47,6 +47,10 @@ getEdges a = edges_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] False))
 buildEdgesTo :: Int -> [(Int, EdgeLabel)] -> [AEdge]
 buildEdgesTo end es = map f es where
     f (i, l) = (i, end, l)
+
+data DDispatch = Var MToken | Table DDispatch
+type FuncInfo = (Node, Node) -- start and end labels
+type FuncEnv = M.Map DDispatch FuncInfo
 }
 
 attr Block MStat Stat MStatList AReturn ElseIf ElseIfList Else
@@ -67,6 +71,10 @@ attr AST Block MStat Stat MStatList ElseIf ElseIfList Else AReturn
 
 attr AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else AReturn
     syn copy :: self
+
+attr Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else AReturn
+    chn localFnEnv :: {FuncEnv}
+    chn globalFnEnv :: {FuncEnv}
 
 attr ElseIf ElseIfList Else
     chn failNumber :: Int -- Where the last (else)if is
@@ -139,6 +147,9 @@ sem AST |
         chunk.number = 1
         chunk.labEnvI = @chunk.labEnvS
         chunk.cont = -1
+
+        chunk.localFnEnv = M.empty
+        chunk.globalFnEnv = M.empty
 
 sem Block | Block loc.nodes                 = @stats.nodes ++ @ret.nodes
                   lhs.edges                 = @stats.edges
