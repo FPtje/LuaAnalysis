@@ -43,7 +43,10 @@ run file =do
 		let ast = parseGLua tokens
 
 		putStrLn "\nGraph:\n"
-		putStrLn . prettify . getGraph . fst $ ast
+		putStrLn . prettify . fst . getGraph . fst $ ast
+
+		putStrLn "\nExtremal nodes:\n"
+		putStrLn . show . snd . getGraph . fst $ ast
 
 		putStrLn "\nNodes\n"
 		putStrLn . show . map fst . getNodes. fst $ ast
@@ -59,7 +62,7 @@ run file =do
 
 		putStrLn "Pretty printed code:"
 		putStrLn . prettyprint . fst $ ast
-		
+
 test file = do
 		contents <- readFile file
 
@@ -81,7 +84,7 @@ test file = do
 		let ast = parseGLua tokens
 
 		putStrLn . prettify $ createKG ( getGraph . fst $ ast)
-                
+
 viewGr file = do
 		contents <- readFile file
 
@@ -101,5 +104,5 @@ viewGr file = do
 			exitWith (ExitFailure 1)
 
 		let ast = parseGLua tokens
-		
-		putStrLn $ graphviz' $ getGraph . fst $ ast
+
+		putStrLn . graphviz' . fst . getGraph . fst $ ast

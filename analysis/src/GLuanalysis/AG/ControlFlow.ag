@@ -23,7 +23,7 @@ instance Show NodeThing where
 type EdgeLabel = Bool -- TODO: different label for edges
 type ANode = LNode NodeThing
 type AEdge = LEdge EdgeLabel
-type AnalysisGraph = Gr NodeThing EdgeLabel
+type AnalysisGraph = (Gr NodeThing EdgeLabel, [Int])
 
 -- Environment of where which lables have
 type LabelEnv = M.Map String Int
@@ -33,10 +33,12 @@ nextUnique :: Int -> (Int, Int)
 nextUnique u = (u+1, u)
 
 getGraph :: AST -> AnalysisGraph
-getGraph a = controlflow_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] False))
+getGraph a = (controlflow_Syn_AST ag, [firstNumber_Syn_AST ag]) where
+    ag = wrap_AST (sem_AST a) (Inh_AST 0 [] False)
 
 getGraphR :: AST -> AnalysisGraph
-getGraphR a = controlflow_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] True))
+getGraphR a = (controlflow_Syn_AST ag, map fst . lastNumbers_Syn_AST $ ag) where
+    ag = wrap_AST (sem_AST a) (Inh_AST 0 [] True)
 
 getNodes a = nodes_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] False))
 getEdges a = edges_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] False))
@@ -52,7 +54,7 @@ attr Block MStat Stat MStatList AReturn ElseIf ElseIfList Else
     inh cont :: Int -- Continues: where to return to
 
 attr AST
-    syn controlflow :: {AnalysisGraph}
+    syn controlflow :: {Gr NodeThing EdgeLabel}
     inh reversed :: Bool
 
 attr AST Block MStat Stat MStatList ElseIf ElseIfList Else AReturn
