@@ -38,9 +38,16 @@ getSets :: Stat -> (KillSet,GenSet)
 getSets s = case s of
             (Def v) -> let declvars = map fst v
                            usedvars = map snd v 
-                           usedvars' = map (\(MExpr e _ ) -> e) usedvars
+                           usedvars' = map (\(MExpr _ e) -> e) usedvars
                            declvars' = map (\(PFVar (MToken _ g) _) -> g) declvars --lets assume no function calls for now
-                       in (declvars',[]) --deal with local vars
+                       in (declvars', concatMap findUsedVars usedvars') --deal with local vars
                        
-findUsedVars :: Expr -> [MToken]
-findUsedVars e = undefined
+findUsedVars :: Expr -> [Token]
+findUsedVars e = case e of
+                 (APrefixExpr pre) -> findUsedVars'' pre
+                 (BinOpExpr _ a b) -> findUsedVars' a ++ findUsedVars' b
+                 (UnOpExpr _ a) -> findUsedVars' a
+                 _ -> []
+        where  findUsedVars' (MExpr _ e1) = findUsedVars e1
+               findUsedVars'' (PFVar (MToken _ g) _) = [g]
+               findUsedVars'' (ExprVar e _) = findUsedVars' e
