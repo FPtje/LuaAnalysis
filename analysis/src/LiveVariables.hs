@@ -28,11 +28,11 @@ data LVNode = LV KillSet GenSet
         deriving Show
 
 mFramework :: MF [Token]
-mFramework = MF {joinOp=union,iota=[],bottom=[],consistent=subset,transfer=id}
-  
-subset :: Eq a => [a] -> [a] -> EdgeLabel -> Bool  
+mFramework = MF {joinOp=union,iota=[],bottom=[],consistent=subset,transfer=undefined}
+
+subset :: Eq a => [a] -> [a] -> EdgeLabel -> Bool
 subset = \ x y a -> and $ map (\z -> elem z y) x
-   
+
 createKG :: AnalysisGraph -> Gr LVNode EdgeLabel
 createKG g =    let nodes = labNodes . fst $ g
                     edges = labEdges . fst $ g
@@ -44,7 +44,7 @@ createKG g =    let nodes = labNodes . fst $ g
 getSets :: Stat -> (KillSet,GenSet)
 getSets s = case s of
             (Def v) -> let declvars = map fst v
-                           usedvars = map snd v 
+                           usedvars = map snd v
                            usedvars' = map (\(MExpr _ e) -> e) usedvars
                            declvars' = map (\(PFVar (MToken _ g) _) -> g) declvars --lets assume no function calls for now
                        in (declvars', concatMap findUsedVars usedvars') --deal with local vars
@@ -58,4 +58,4 @@ findUsedVars e = case e of
         where  findUsedVars' (MExpr _ e1) = findUsedVars e1
                findUsedVars'' (PFVar (MToken _ g) _) = [g]
                findUsedVars'' (ExprVar e _) = findUsedVars' e
-               
+
