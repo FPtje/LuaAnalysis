@@ -33,10 +33,13 @@ nextUnique :: Int -> (Int, Int)
 nextUnique u = (u+1, u)
 
 getGraph :: AST -> AnalysisGraph
-getGraph a = controlflow_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 []))
+getGraph a = controlflow_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] False))
 
-getNodes a = nodes_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 []))
-getEdges a = edges_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 []))
+getGraphR :: AST -> AnalysisGraph
+getGraphR a = controlflow_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] True))
+
+getNodes a = nodes_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] False))
+getEdges a = edges_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] False))
 
 -- | Build edges from a list of half edges and an end point
 buildEdgesTo :: Int -> [(Int, EdgeLabel)] -> [AEdge]
@@ -50,6 +53,7 @@ attr Block MStat Stat MStatList AReturn ElseIf ElseIfList Else
 
 attr AST
     syn controlflow :: {AnalysisGraph}
+    inh reversed :: Bool
 
 attr AST Block MStat Stat MStatList ElseIf ElseIfList Else AReturn
     syn nodes use {++} {[]} :: {[ANode]} -- The nodes of the graph
@@ -128,7 +132,8 @@ sem AReturn
                  lhs.number                 = @lhs.number - 1
 
 sem AST |
-    AST lhs.controlflow = mkGraph @chunk.nodes @chunk.edges
+    AST lhs.controlflow = mkGraph @chunk.nodes @loc.edges
+        loc.edges = if @lhs.reversed then map (\(x,y,z) -> (y,x,z)) @chunk.edges else @chunk.edges
         chunk.number = 1
         chunk.labEnvI = @chunk.labEnvS
         chunk.cont = -1
