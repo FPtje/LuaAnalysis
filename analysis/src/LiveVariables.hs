@@ -24,7 +24,8 @@ mFramework = MF {joinOp=union,iota=[],bottom=[],consistent=subset,transfer=lvEnt
 
 lvEntry :: NodeThing -> [Token] -> [Token]
 lvEntry (NStat n) ts = let (killset,genset) = getSets n
-                      in (ts \\ killset) `union` genset
+                       in (ts \\ killset) `union` genset
+lvEntry (NReturn _) ts = ts
 
 
 subset :: Eq a => [a] -> [a] -> EdgeLabel -> Bool
@@ -46,6 +47,7 @@ getSets s = case s of
                            declvars' = map (\(PFVar (MToken _ g) _) -> g) declvars --lets assume no function calls for now
                        in (declvars', concatMap findUsedVars usedvars') --deal with local vars
             (AIf (MExpr _ e) _ _ _) -> ([],findUsedVars e)
+            _ -> error (show s)
 
 findUsedVars :: Expr -> [Token]
 findUsedVars e = case e of
