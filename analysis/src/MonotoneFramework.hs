@@ -3,6 +3,7 @@ module MonotoneFramework where
 import GLuanalysis.AG.ControlFlow
 import Data.Graph.Inductive.Graph
 import Data.Maybe
+import Debug.Trace
 import qualified Data.Map as M
 
 -- Mononotone framework data type
@@ -21,13 +22,14 @@ type NodeLabels a = M.Map Int a
 
 -- Does initialisation of monotone framework.
 -- outsources the iteration to the "iteration" function
-mfp :: (Show a) => MF a -> AnalysisGraph -> NodeLabels a
-mfp mf g@(gr, extremals) = iteration mf g workingList lblData where
-
+mfp :: (Show a, Eq a) => MF a -> AnalysisGraph -> NodeLabels a
+mfp mf g@(gr, extremals) = let iter =  iteration mf g workingList lblData
+                           in  iter
+        where 
     -- Set all initial value to bottom/iota
     nonExtremals = map (\n -> (n, bottom mf)) . filter (`notElem` extremals) . map fst $ labNodes gr
     extremalVals = map (\i -> (i, iota mf))  extremals
-    lblData = M.fromList (nonExtremals ++ extremalVals) -- initial values
+    lblData = M.fromList (extremalVals ++ nonExtremals) -- initial values
 
     workingList = labEdges gr
 
@@ -36,8 +38,7 @@ iteration :: (Show a) => MF a -> AnalysisGraph -> WorkingList -> NodeLabels a ->
 iteration _  _         []                  nl = nl
 iteration mf g@(gr, _) ((l, l', lbl) : xs) nl = if consistent mf transferred toNodeVal lbl then
         iteration mf g xs nl -- Next iteration
-    else
-        iteration mf g newW newNl where
+    else iteration mf g newW newNl where
 
     fromNodeVal = nl M.! l -- A[l]
     toNodeVal   = nl M.! l' -- A[l']
@@ -47,4 +48,4 @@ iteration mf g@(gr, _) ((l, l', lbl) : xs) nl = if consistent mf transferred toN
     -- A[l'] := A[l'] ⨆ f_l(A[l]);
     newNl = M.insert l' (joinOp mf toNodeVal transferred) nl
     -- forall l'' with (l', l'') ∈ F do W := (l', l'') : W;
-    newW = out gr l'
+    newW = xs ++ out gr l'

@@ -84,7 +84,7 @@ test file = do
 
 		let ast = parseGLua tokens
 
-		putStrLn $ show $ mfp mFramework (getGraph . fst $ ast)
+		putStrLn $ show $ mfp mFramework  (getGraphR . fst $ ast)
 
 viewGr file = do
 		contents <- readFile file
