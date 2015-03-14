@@ -92,7 +92,7 @@ attr PrefixExp PFExprSuffix ExprSuffixList PFExprSuffix
 attr ElseIf ElseIfList Else
     chn failNumber :: Int -- Where the last (else)if is
 
-attr Block MStat Stat ElseIf ElseIfList Else MStatList
+attr MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else Block MStat Stat AReturn PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp
     -- Label environments are linked in AST level to force it to be fully generated
     syn labEnvS use {M.union} {M.empty} :: {LabelEnv}
     inh labEnvI :: {LabelEnv}
