@@ -153,10 +153,11 @@ deadcodeAnalysis file =
                         let sign = snd $ mfp signFramework  (getGraph . fst $ ast)
                         let reach = snd $ mfp R.mFramework  (getGraph . fst $ ast)
                         let lv = snd $ mfp LV.mFramework  (getGraphR . fst $ ast)
-                        let deadcode = zipWith3 (zipEm) sign reach lv
-                        putStrLn . show $ deadcode
-
+                        let deadcode = undefined -- zipEm sign reach lv
+                        putStrLn ""
+zipEm :: (Show d) => a -> b -> c -> [d]
 zipEm = undefined
+
 viewGr file = do
 		contents <- readFile file
 
