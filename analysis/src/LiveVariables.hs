@@ -5,10 +5,10 @@ import GLua.TokenTypes
 import Data.Graph.Inductive.Graph
 import Data.Graph.Inductive.PatriciaTree
 import GLua.AG.AST
-
+import Data.Maybe
 import Data.List (union,(\\))
 import MonotoneFramework
-
+import Debug.Trace
 type KillSet = [Token]
 type GenSet = [Token]
 
@@ -31,13 +31,17 @@ lvEntry (NReturn _) ts = ts
 subset :: Eq a => [a] -> [a] -> EdgeLabel -> Bool
 subset x y _ = all (`elem` y) x
 
-createKG :: AnalysisGraph -> Gr LVNode EdgeLabel
+createKG :: AnalysisGraph -> [(Node,LVNode)]
 createKG g =    let nodes = labNodes . fst $ g
                     edges = labEdges . fst $ g
-                    newnodes = let n' = map getSets nodes'
-                                   nodes' = map (\(l,(NStat s)) -> s) nodes --wrong, but works for now
+                    newnodes = let n' = map (\x -> case x of  
+                                                   Just y -> getSets y
+                                                   Nothing -> ([],[]))nodes'
+                                   nodes' =          map (\(l,s') -> case s' of
+                                                                        (NStat s) -> Just s
+                                                                        (NReturn _) -> Nothing ) nodes --wrong, but works for now
                                in zipWith (\(k,g) (l,_) -> (l , LV k g ) ) n' nodes
-                in mkGraph newnodes edges
+                in newnodes
 
 getSets :: Stat -> (KillSet,GenSet)
 getSets s = case s of

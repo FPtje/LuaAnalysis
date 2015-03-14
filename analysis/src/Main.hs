@@ -1,5 +1,5 @@
 module Main where
-
+import Debug.Trace
 import GLuanalysis.AG.ControlFlow
 import GLua.Lexer
 import GLua.TokenTypes
@@ -155,15 +155,23 @@ deadcodeAnalysis file =
                         let sign = toList $ snd $ mfp signFramework  (getGraph . fst $ ast)
                         let reach = toList $ snd $ mfp R.mFramework  (getGraph . fst $ ast)
                         let lv = toList $ snd $ mfp LV.mFramework  (getGraphR . fst $ ast)
-                        let deadcode = catMaybes $ zipEm sign reach lv
-                        putStrLn . show $ deadcode
-zipEm :: [(Node,SignAn)] -> [(Node,Bool)] -> [(Node,[Token])] -> [Maybe Node]
+                        let lv' = map (\(x, LV.LV k g) -> (x,k)) $ LV.createKG (getGraphR . fst $ ast)
+                        let lv2 = checkLV lv lv' (fst $ getGraph . fst $ ast)
+                        let deadcode = catMaybes $ zipEm sign reach lv2
+                        let deadcode1 = map (lab (fst $ getGraph . fst $ ast)) deadcode
+                        putStrLn . show $ deadcode-- reach --(fst $ getGraph . fst $ ast)
+                        
+--checkLV :: [(Node,[Token])] -> [(Node,Killset)] -> Gr NodeThing EdgeLabel -> [(Node,Bool)]
+--checkLV ((d,e):xs) killsets gr =  let adjacent = suc gr d                                       
+ --                                 in (d,and $ map (\x -> elem x a) kill) : checkLV xs killsets gr
+checkLV _ _ _ = undefined
+
+zipEm :: [(Node,SignAn)] -> [(Node,Bool)] -> [(Node,Bool)] -> [Maybe Node]
 zipEm = zipWith3 (\(a,b) (c,d) (e,f) -> if a == c && a == e
-                                        then if (toList b) == [] || d == False || f == []
+                                        then if (toList b) == [] || d == False || f == False
                                              then Just a
                                              else Nothing
-                                        else error "unsorted")
-               
+                                        else error ( "Unsorted in zipEm " ++ show a ++ " " ++ show c ++ " " ++ show e ))
 
 viewGr file = do
 		contents <- readFile file
