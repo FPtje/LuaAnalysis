@@ -1,28 +1,28 @@
 module {GLuanalysis.AG.ControlFlow}{}{}
 
 {-
-          _____                    _____                    _____                    _____                    _____          
-         /\    \                  /\    \                  /\    \                  /\    \                  /\    \         
-        /::\____\                /::\____\                /::\    \                /::\    \                /::\    \        
-       /:::/    /               /:::/    /               /::::\    \              /::::\    \              /::::\    \       
-      /:::/    /               /:::/    /               /::::::\    \            /::::::\    \            /::::::\    \      
-     /:::/    /               /:::/    /               /:::/\:::\    \          /:::/\:::\    \          /:::/\:::\    \     
-    /:::/    /               /:::/    /               /:::/__\:::\    \        /:::/  \:::\    \        /:::/  \:::\    \    
-   /:::/    /               /:::/    /               /::::\   \:::\    \      /:::/    \:::\    \      /:::/    \:::\    \   
-  /:::/    /      _____    /:::/    /      _____    /::::::\   \:::\    \    /:::/    / \:::\    \    /:::/    / \:::\    \  
- /:::/____/      /\    \  /:::/____/      /\    \  /:::/\:::\   \:::\    \  /:::/    /   \:::\ ___\  /:::/    /   \:::\    \ 
+          _____                    _____                    _____                    _____                    _____
+         /\    \                  /\    \                  /\    \                  /\    \                  /\    \
+        /::\____\                /::\____\                /::\    \                /::\    \                /::\    \
+       /:::/    /               /:::/    /               /::::\    \              /::::\    \              /::::\    \
+      /:::/    /               /:::/    /               /::::::\    \            /::::::\    \            /::::::\    \
+     /:::/    /               /:::/    /               /:::/\:::\    \          /:::/\:::\    \          /:::/\:::\    \
+    /:::/    /               /:::/    /               /:::/__\:::\    \        /:::/  \:::\    \        /:::/  \:::\    \
+   /:::/    /               /:::/    /               /::::\   \:::\    \      /:::/    \:::\    \      /:::/    \:::\    \
+  /:::/    /      _____    /:::/    /      _____    /::::::\   \:::\    \    /:::/    / \:::\    \    /:::/    / \:::\    \
+ /:::/____/      /\    \  /:::/____/      /\    \  /:::/\:::\   \:::\    \  /:::/    /   \:::\ ___\  /:::/    /   \:::\    \
 |:::|    /      /::\____\|:::|    /      /::\____\/:::/  \:::\   \:::\____\/:::/____/  ___\:::|    |/:::/____/     \:::\____\
 |:::|____\     /:::/    /|:::|____\     /:::/    /\::/    \:::\  /:::/    /\:::\    \ /\  /:::|____|\:::\    \      \::/    /
- \:::\    \   /:::/    /  \:::\    \   /:::/    /  \/____/ \:::\/:::/    /  \:::\    /::\ \::/    /  \:::\    \      \/____/ 
-  \:::\    \ /:::/    /    \:::\    \ /:::/    /            \::::::/    /    \:::\   \:::\ \/____/    \:::\    \             
-   \:::\    /:::/    /      \:::\    /:::/    /              \::::/    /      \:::\   \:::\____\       \:::\    \            
-    \:::\__/:::/    /        \:::\__/:::/    /               /:::/    /        \:::\  /:::/    /        \:::\    \           
-     \::::::::/    /          \::::::::/    /               /:::/    /          \:::\/:::/    /          \:::\    \          
-      \::::::/    /            \::::::/    /               /:::/    /            \::::::/    /            \:::\    \         
-       \::::/    /              \::::/    /               /:::/    /              \::::/    /              \:::\____\        
-        \::/____/                \::/____/                \::/    /                \::/____/                \::/    /        
-         ~~                       ~~                       \/____/                                           \/____/         
-                                                                                                                             
+ \:::\    \   /:::/    /  \:::\    \   /:::/    /  \/____/ \:::\/:::/    /  \:::\    /::\ \::/    /  \:::\    \      \/____/
+  \:::\    \ /:::/    /    \:::\    \ /:::/    /            \::::::/    /    \:::\   \:::\ \/____/    \:::\    \
+   \:::\    /:::/    /      \:::\    /:::/    /              \::::/    /      \:::\   \:::\____\       \:::\    \
+    \:::\__/:::/    /        \:::\__/:::/    /               /:::/    /        \:::\  /:::/    /        \:::\    \
+     \::::::::/    /          \::::::::/    /               /:::/    /          \:::\/:::/    /          \:::\    \
+      \::::::/    /            \::::::/    /               /:::/    /            \::::::/    /            \:::\    \
+       \::::/    /              \::::/    /               /:::/    /              \::::/    /              \:::\____\
+        \::/____/                \::/____/                \::/    /                \::/____/                \::/    /
+         ~~                       ~~                       \/____/                                           \/____/
+
 -}
 
 imports
@@ -132,6 +132,9 @@ attr MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf El
     syn labEnvS use {M.union} {M.empty} :: {LabelEnv}
     inh labEnvI :: {LabelEnv}
 
+attr Block AReturn
+    inh makeReturn :: Bool -- whether a return should be made if not present. Used for function definitions
+
 sem AST |
     AST lhs.controlflow = mkGraph @chunk.nodes @loc.edges
         loc.edges = if @lhs.reversed then map (\(x,y,z) -> (y,x,z)) @chunk.edges else @chunk.edges
@@ -139,6 +142,7 @@ sem AST |
         chunk.labEnvI = @chunk.labEnvS
         chunk.cont = -1
 
+        chunk.makeReturn = False
         chunk.localFnEnv = [M.empty]
         chunk.globalFnEnv = M.empty
 
@@ -176,6 +180,7 @@ sem ElseIf
                  lhs.failNumber             = @lhs.number
                  x2.localFnEnv              = M.empty : @lhs.localFnEnv
                  lhs.localFnEnv             = tail @lhs.localFnEnv
+                 x2.makeReturn              = False
 
 sem ElseIfList
     | Cons
@@ -199,6 +204,7 @@ sem Else
                                               @just.edges
                  just.localFnEnv            = M.empty : @lhs.localFnEnv
                  lhs.localFnEnv             = tail @lhs.localFnEnv
+                 just.makeReturn            = False
     | Nothing
                  lhs.lastNumbers            = []
 
@@ -206,9 +212,9 @@ sem AReturn
     | AReturn    lhs.nodes                  = [(@lhs.number, NReturn @loc.copy)]
                  lhs.number                 = @lhs.number + 1
                  lhs.returnNumbers          = [@lhs.number]
-    | NoReturn   lhs.nodes                  = [(@lhs.number, NReturn @loc.copy)]-- TODO: Return statement
-                 lhs.number                 = @lhs.number + 1
-                 lhs.returnNumbers          = [@lhs.number]
+    | NoReturn   lhs.nodes                  = if @lhs.makeReturn then [(@lhs.number, NReturn @loc.copy)] else []
+                 lhs.number                 = if @lhs.makeReturn then @lhs.number + 1 else @lhs.number
+                 lhs.returnNumbers          = if @lhs.makeReturn then [@lhs.number] else []
 
 sem Block | Block loc.nodes                 = @stats.nodes ++ @ret.nodes
                   lhs.edges                 = @stats.edges
@@ -281,6 +287,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.localFnEnv     = tail @lhs.localFnEnv
                          lhs.nodes          = @body.nodes
                          lhs.edges          = @body.edges
+                         body.makeReturn    = False
 
             | AWhile     lhs.number         = @body.number
                          cond.number        = @lhs.number + 1
@@ -294,6 +301,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                                               @body.edges ++ @cond.edges
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
                          lhs.localFnEnv     = tail @lhs.localFnEnv
+                         body.makeReturn    = False
 
             | ARepeat    lhs.number         = @cond.number
                          body.number        = @lhs.number + 1
@@ -307,6 +315,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                                               @body.edges ++ @cond.edges
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
                          lhs.localFnEnv     = tail @lhs.localFnEnv
+                         body.makeReturn    = False
 
             | AIf        cond.number        = @lhs.number + 1
                          body.number        = @cond.number
@@ -339,6 +348,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                                               @cond.edges ++
                                               [(@lhs.number, @body.firstNumber, Intra True)] ++
                                               @body.edges ++ @elifs.edges ++ @els.edges
+                         body.makeReturn    = False
 
             | ANFor      val.number         = @lhs.number + 1
                          to.number          = @val.number
@@ -354,6 +364,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.edges          = (@loc.firstNumber, @body.firstNumber, Intra True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
                                               @body.edges ++ @val.edges ++ @to.edges ++ @step.edges
+                         body.makeReturn    = False
 
             | AGFor      vals.number        = @lhs.number + 1
                          body.number        = @vals.number
@@ -367,6 +378,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.edges          = (@loc.firstNumber, @body.firstNumber, Intra True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
                                               @body.edges ++ @vals.edges
+                         body.makeReturn    = False
 
             | AFunc       -- TODO: functions
                          lhs.number         = @lhs.number + 1
@@ -375,6 +387,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
                          lhs.localFnEnv     = tail @lhs.localFnEnv
+                         body.makeReturn    = True
 
             | ALocFunc   lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
@@ -382,6 +395,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
                          lhs.localFnEnv     = tail @lhs.localFnEnv
+                         body.makeReturn    = True
 
 
  -- TODO: dispatch
@@ -414,6 +428,7 @@ sem Expr
                             lhs.number     = @body.number
                             lhs.nodes      = @body.nodes
                             lhs.edges      = @body.edges
+                            body.makeReturn= True
     | APrefixExpr           lhs.funs       = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @pexpr.ddispatch
     | ATableConstructor     lhs.funs       = @fields.funs
     | BinOpExpr             lhs.funs       = @left.funs ++ @right.funs
