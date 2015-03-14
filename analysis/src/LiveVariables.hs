@@ -1,25 +1,12 @@
 module LiveVariables where
 
 import GLuanalysis.AG.ControlFlow
-import GLua.Lexer
 import GLua.TokenTypes
-import GLua.Parser
-import GLua.AG.PrettyPrint
 import Data.Graph.Inductive.Graph
 import Data.Graph.Inductive.PatriciaTree
-import Graphviz
 import GLua.AG.AST
 
-import Data.Char
 import Data.List (union,(\\))
-
-import System.FilePath
-import System.Environment
-import System.IO
-import System.Exit
-import Debug.Trace
-import Control.Monad
-import GLua.TokenTypes
 import MonotoneFramework
 
 type KillSet = [Token]
@@ -40,12 +27,8 @@ lvEntry (NStat n) ts = let (killset,genset) = getSets n
                       in (ts \\ killset) `union` genset
 
 
-deleteList :: Eq a => [a] -> [a] -> [a]
-deleteList (x:xs) ts = if elem x ts then [] else [x] ++ deleteList xs ts
-deleteList [] ts = []
-                      
 subset :: Eq a => [a] -> [a] -> EdgeLabel -> Bool
-subset = \ x y a -> and $ map (\z -> elem z y) x
+subset x y _ = all (`elem` y) x
 
 createKG :: AnalysisGraph -> Gr LVNode EdgeLabel
 createKG g =    let nodes = labNodes . fst $ g
@@ -63,7 +46,7 @@ getSets s = case s of
                            declvars' = map (\(PFVar (MToken _ g) _) -> g) declvars --lets assume no function calls for now
                        in (declvars', concatMap findUsedVars usedvars') --deal with local vars
             (AIf (MExpr _ e) _ _ _) -> ([],findUsedVars e)
-            
+
 findUsedVars :: Expr -> [Token]
 findUsedVars e = case e of
                  (APrefixExpr pre) -> findUsedVars'' pre

@@ -7,6 +7,7 @@ import qualified Data.Map as M
 import Data.Graph.Inductive.Graph
 import Data.Graph.Inductive.PatriciaTree
 import qualified GLua.AG.PrettyPrint as PP
+import Debug.Trace
 }
 include "../../GLua/AG/AST.ag"
 
@@ -48,7 +49,7 @@ buildEdgesTo :: Int -> [(Int, EdgeLabel)] -> [AEdge]
 buildEdgesTo end es = map f es where
     f (i, l) = (i, end, l)
 
-data DDispatch = Var MToken | Table DDispatch deriving (Eq)
+data DDispatch = Var MToken | Table DDispatch deriving (Eq, Ord, Show)
 type FuncInfo = (Node, Node) -- start and end labels
 type FuncEnv = M.Map DDispatch [FuncInfo]
 }
@@ -75,22 +76,23 @@ attr AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Arg
     syn copy :: self
 
 attr Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else AReturn
-    chn localFnEnv :: {FuncEnv} -- Dynamic dispatch: figure out where functions are defined
+    chn localFnEnv :: {[FuncEnv]} -- Dynamic dispatch: figure out where functions are defined
     chn globalFnEnv :: {FuncEnv}
+    syn returnNumbers use {++} {[]} :: {[Node]} -- Where the return statements are
 
-attr Declaration
-    syn fnEnv :: {FuncEnv} -- don't know whether local or global
+attr Declaration VarsList
+    syn fnEnv use {M.union} {M.empty} :: {FuncEnv} -- don't know whether local or global
 
 attr MExpr Expr
     syn funs use {++} {[]} :: {[FuncInfo]}
 
-attr PrefixExp PFExprSuffix ExprSuffixList PFExprSuffix
+attr PrefixExp PFExprSuffix PFExprSuffix
     syn ddispatch :: {DDispatch} -- identifiers for variables/function calls
 
 attr ElseIf ElseIfList Else
     chn failNumber :: Int -- Where the last (else)if is
 
-attr Block MStat Stat ElseIf ElseIfList Else MStatList
+attr MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else Block MStat Stat AReturn PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp
     -- Label environments are linked in AST level to force it to be fully generated
     syn labEnvS use {M.union} {M.empty} :: {LabelEnv}
     inh labEnvI :: {LabelEnv}
@@ -102,7 +104,7 @@ sem AST |
         chunk.labEnvI = @chunk.labEnvS
         chunk.cont = -1
 
-        chunk.localFnEnv = M.empty
+        chunk.localFnEnv = [M.empty]
         chunk.globalFnEnv = M.empty
 
 sem MStatList
@@ -137,6 +139,8 @@ sem ElseIf
                                               (if @lhs.failNumber == -1 then [] else [(@lhs.number, @lhs.failNumber, False)]) ++ -- failed edge
                                               @x1.edges ++ @x2.edges
                  lhs.failNumber             = @lhs.number
+                 x2.localFnEnv              = M.empty : @lhs.localFnEnv
+                 lhs.localFnEnv             = tail @lhs.localFnEnv
 
 sem ElseIfList
     | Cons
@@ -158,14 +162,18 @@ sem Else
                                               -- make edge between condition failed of last (else)if to else
                  lhs.edges                  = (@lhs.failNumber, @lhs.number, False) :
                                               @just.edges
+                 just.localFnEnv            = M.empty : @lhs.localFnEnv
+                 lhs.localFnEnv             = tail @lhs.localFnEnv
     | Nothing
                  lhs.lastNumbers            = []
 
 sem AReturn
     | AReturn    lhs.nodes                  = [(@lhs.number, NReturn @loc.copy)]
-                 lhs.number                 = @lhs.number
-    | NoReturn   lhs.nodes                  = []-- TODO: Return statement
-                 lhs.number                 = @lhs.number - 1
+                 lhs.number                 = @lhs.number + 1
+                 lhs.returnNumbers          = [@lhs.number]
+    | NoReturn   lhs.nodes                  = [(@lhs.number, NReturn @loc.copy)]-- TODO: Return statement
+                 lhs.number                 = @lhs.number + 1
+                 lhs.returnNumbers          = [@lhs.number]
 
 sem Block | Block loc.nodes                 = @stats.nodes ++ @ret.nodes
                   lhs.edges                 = @stats.edges
@@ -184,11 +192,13 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @vars.nodes
+                         lhs.globalFnEnv    = @lhs.globalFnEnv `M.union` @vars.fnEnv
 
             | LocDef     lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @vars.nodes
+                         lhs.localFnEnv     = ((head @lhs.localFnEnv) `M.union` @vars.fnEnv) : tail @lhs.localFnEnv -- add to deepest scope
 
             | AFuncCall  lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
@@ -222,6 +232,8 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          body.number        = @lhs.number
                          loc.firstNumber    = @body.firstNumber
                          loc.lastNumbers    = @body.lastNumbers
+                         body.localFnEnv    = M.empty : @lhs.localFnEnv
+                         lhs.localFnEnv     = tail @lhs.localFnEnv
                          lhs.nodes          = @body.nodes
                          lhs.edges          = @body.edges
 
@@ -235,6 +247,8 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.edges          = (@loc.firstNumber, @body.firstNumber, True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
                                               @body.edges ++ @cond.edges
+                         body.localFnEnv    = M.empty : @lhs.localFnEnv
+                         lhs.localFnEnv     = tail @lhs.localFnEnv
 
             | ARepeat    lhs.number         = @cond.number
                          body.number        = @lhs.number + 1
@@ -246,9 +260,13 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.edges          = (@lhs.number, @body.firstNumber, True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
                                               @body.edges ++ @cond.edges
+                         body.localFnEnv    = M.empty : @lhs.localFnEnv
+                         lhs.localFnEnv     = tail @lhs.localFnEnv
 
             | AIf        cond.number        = @lhs.number + 1
                          body.number        = @cond.number
+                         body.localFnEnv    = M.empty : @lhs.localFnEnv
+                         lhs.localFnEnv     = tail @lhs.localFnEnv
                          elifs.number       = @body.number
                          elifs.failNumber   = -1
                          -- link condition failed of either last elseif or the if to the else:
@@ -282,6 +300,8 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          step.number        = @to.number
                          body.number        = @step.number
                          lhs.number         = @body.number
+                         body.localFnEnv    = M.empty : @lhs.localFnEnv
+                         lhs.localFnEnv     = tail @lhs.localFnEnv
                          loc.firstNumber    = @lhs.number
                          body.cont          = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, False)] ++ @body.breaks -- End of for loop
@@ -295,6 +315,8 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.number         = @body.number
                          loc.firstNumber    = @lhs.number
                          body.cont          = @lhs.number
+                         body.localFnEnv    = M.empty : @lhs.localFnEnv
+                         lhs.localFnEnv     = tail @lhs.localFnEnv
                          loc.lastNumbers    = [(@lhs.number, False)] ++ @body.breaks  -- End of for loop
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @vals.nodes
                          lhs.edges          = (@loc.firstNumber, @body.firstNumber, True) :
@@ -306,18 +328,22 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+                         body.localFnEnv    = M.empty : @lhs.localFnEnv
+                         lhs.localFnEnv     = tail @lhs.localFnEnv
 
             | ALocFunc   lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+                         body.localFnEnv    = M.empty : @lhs.localFnEnv
+                         lhs.localFnEnv     = tail @lhs.localFnEnv
 
 
  -- TODO: dispatch
 sem PrefixExp
-    | PFVar                 lhs.ddispatch   = undefined
+    | PFVar                 lhs.ddispatch   = Var @name -- TODO: suffix expressions?
                             lhs.number      = @lhs.number
-    | ExprVar               lhs.ddispatch   = undefined
+    | ExprVar               lhs.ddispatch   = undefined -- TODO: Expression stuff
                             expr.number     = @lhs.number + 1
                             lhs.number      = @expr.number
 
@@ -337,8 +363,9 @@ sem Expr
     | ANumber               lhs.funs       = []
     | AString               lhs.funs       = []
     | AVarArg               lhs.funs       = []
-    | AnonymousFunc         lhs.funs       = [] -- TODO: function start and end labels
+    | AnonymousFunc         lhs.funs       = map (\i -> (@body.firstNumber, i)) @body.returnNumbers
                             body.number    = @lhs.number + 1
+                            body.cont      = 0
                             lhs.number     = @body.number
                             lhs.nodes      = @body.nodes
                             lhs.edges      = @body.edges
