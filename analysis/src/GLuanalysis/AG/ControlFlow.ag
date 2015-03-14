@@ -52,6 +52,13 @@ buildEdgesTo end es = map f es where
 data DDispatch = Var MToken | Table DDispatch deriving (Eq, Ord, Show)
 type FuncInfo = (Node, Node) -- start and end labels
 type FuncEnv = M.Map DDispatch [FuncInfo]
+
+-- find all possible function points from local and global environments
+findFunctions :: [FuncEnv] -> FuncEnv -> DDispatch -> [FuncInfo]
+findFunctions loc glob dp = if dp `M.member` glob then (glob M.! dp) ++ findlocs loc else findlocs loc where
+    findlocs :: [FuncEnv] -> [FuncInfo]
+    findlocs [] = []
+    findlocs (x : xs) = if dp `M.member` x then (x M.! dp) ++ findlocs xs else findlocs xs
 }
 
 attr Block MStat Stat MStatList AReturn ElseIf ElseIfList Else
@@ -83,7 +90,7 @@ attr Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Fi
 attr Declaration VarsList
     syn fnEnv use {M.union} {M.empty} :: {FuncEnv} -- don't know whether local or global
 
-attr MExpr Expr
+attr MExpr Expr FieldList Field
     syn funs use {++} {[]} :: {[FuncInfo]}
 
 attr PrefixExp PFExprSuffix PFExprSuffix
@@ -369,12 +376,21 @@ sem Expr
                             lhs.number     = @body.number
                             lhs.nodes      = @body.nodes
                             lhs.edges      = @body.edges
-    | APrefixExpr           lhs.funs       = []
-    | ATableConstructor     lhs.funs       = []
-    | BinOpExpr             lhs.funs       = []
+    | APrefixExpr           lhs.funs       = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @pexpr.ddispatch
+    | ATableConstructor     lhs.funs       = @fields.funs
+    | BinOpExpr             lhs.funs       = @left.funs ++ @right.funs
                             lhs.number     = @right.number
                             left.number    = @lhs.number + 1
                             right.number   = @left.number
     | UnOpExpr              lhs.funs       = []
                             right.number   = @lhs.number + 1
                             lhs.number     = @right.number
+
+sem FieldList
+    | Cons                  lhs.funs       = @hd.funs ++ @tl.funs
+    | Nil                   lhs.funs       = []
+
+sem Field
+    | ExprField             lhs.funs       = @value.funs
+    | NamedField            lhs.funs       = @value.funs
+    | UnnamedField          lhs.funs       = @value.funs
