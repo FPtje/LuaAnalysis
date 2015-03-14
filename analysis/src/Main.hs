@@ -129,6 +129,34 @@ signA file = do
                 
 		putStrLn $ show $ mfp signFramework  (getGraph . fst $ ast)
 
+deadcodeAnalysis file = 
+                do
+                        contents <- readFile file
+
+                        -- Lex the file
+                        let lex = execParseTokens contents
+                        let tokens = fst lex
+                        let errors = snd lex
+
+                        unless (null errors) $ do
+                                mapM_ print errors
+                                -- Attempt to fix errors when asked
+                                when (True) $ do
+                                        writeFile file . concatMap show $ tokens
+                                        putStrLn "Success"
+                                        exitSuccess
+
+                                exitWith (ExitFailure 1)
+
+                        let ast = parseGLua tokens
+                        
+                        let sign = snd $ mfp signFramework  (getGraph . fst $ ast)
+                        let reach = snd $ mfp R.mFramework  (getGraph . fst $ ast)
+                        let lv = snd $ mfp LV.mFramework  (getGraphR . fst $ ast)
+                        let deadcode = zipWith3 (zipEm) sign reach lv
+                        putStrLn . show $ deadcode
+
+zipEm = undefined
 viewGr file = do
 		contents <- readFile file
 

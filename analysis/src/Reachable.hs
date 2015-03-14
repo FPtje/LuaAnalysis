@@ -10,4 +10,4 @@ import Data.List (union,(\\))
 import MonotoneFramework
 
 mFramework :: MF Bool
-mFramework = MF {joinOp=(||),iota=True,bottom=False,consistent= \a b _ -> a && b,transfer= \x _ -> y}
+mFramework = MF {joinOp=(||),iota=True,bottom=False,consistent= \a b _ -> a && b,transfer= \_ y -> y}
