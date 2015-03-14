@@ -9,5 +9,7 @@ import GLua.AG.AST
 import Data.List (union,(\\))
 import MonotoneFramework
 
-mFramework :: MF [Token]
-mFramework = MF {joinOp=union,iota=[],bottom=[],consistent=undefined,transfer=undefined}
+mFramework :: MF Bool
+mFramework = MF {joinOp=(||),iota=True,bottom=False,consistent=consistentF,transfer= \x y -> y}
+
+consistentF a b c = a && b

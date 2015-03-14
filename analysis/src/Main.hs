@@ -85,6 +85,27 @@ liveVar file = do
 
 		let ast = parseGLua tokens
 		putStrLn $ show $ mfp LV.mFramework  (getGraphR . fst $ ast)
+
+reachA file = do
+		contents <- readFile file
+
+		-- Lex the file
+		let lex = execParseTokens contents
+		let tokens = fst lex
+		let errors = snd lex
+
+		unless (null errors) $ do
+			mapM_ print errors
+			-- Attempt to fix errors when asked
+			when (True) $ do
+				writeFile file . concatMap show $ tokens
+				putStrLn "Success"
+				exitSuccess
+
+			exitWith (ExitFailure 1)
+
+		let ast = parseGLua tokens
+		putStrLn $ show $ mfp R.mFramework  (getGraph . fst $ ast)
                 
 signA file = do
 		contents <- readFile file
