@@ -69,12 +69,13 @@ attr Block MStat Stat MStatList AReturn ElseIf ElseIfList Else MExpr Expr MExprL
 
 attr AST
     syn controlflow :: {Gr NodeThing EdgeLabel}
-    inh reversed :: Bool
 
 attr AST Block MStat Stat MStatList ElseIf ElseIfList Else AReturn MExpr Expr MExprList Declaration PrefixExp PFExprSuffix ExprSuffixList Args Field FieldList VarsList
     syn nodes use {++} {[]} :: {[ANode]} -- The nodes of the graph
     syn edges use {++} {[]} :: {[AEdge]} -- The edges of the graph
     syn breaks use {++} {[]} ::  {[(Int, EdgeLabel)]} -- Where the breaks go to
+
+    inh reversed :: Bool
 
     chn firstNumber :: Int -- Deciding flow: the first node of a statement/block/...
     chn lastNumbers :: {[(Int, EdgeLabel)]} -- Deciding flow: the last node(s) of a statement/block/...
