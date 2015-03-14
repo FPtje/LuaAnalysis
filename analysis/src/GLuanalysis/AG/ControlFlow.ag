@@ -164,8 +164,8 @@ sem Else
 sem AReturn
     | AReturn    lhs.nodes                  = [(@lhs.number, NReturn @loc.copy)]
                  lhs.number                 = @lhs.number
-    | NoReturn   lhs.nodes                  = []-- TODO: Return statement
-                 lhs.number                 = @lhs.number - 1
+    | NoReturn   lhs.nodes                  = [(@lhs.number, NReturn @loc.copy)]-- TODO: Return statement
+                 lhs.number                 = @lhs.number
 
 sem Block | Block loc.nodes                 = @stats.nodes ++ @ret.nodes
                   lhs.edges                 = @stats.edges
