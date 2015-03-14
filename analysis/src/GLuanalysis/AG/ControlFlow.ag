@@ -48,20 +48,22 @@ buildEdgesTo :: Int -> [(Int, EdgeLabel)] -> [AEdge]
 buildEdgesTo end es = map f es where
     f (i, l) = (i, end, l)
 
-data DDispatch = Var MToken | Table DDispatch
+data DDispatch = Var MToken | Table DDispatch deriving (Eq)
 type FuncInfo = (Node, Node) -- start and end labels
-type FuncEnv = M.Map DDispatch FuncInfo
+type FuncEnv = M.Map DDispatch [FuncInfo]
 }
 
 attr Block MStat Stat MStatList AReturn ElseIf ElseIfList Else
-    chn number :: Int -- Label number
     inh cont :: Int -- Continues: where to return to
+
+attr Block MStat Stat MStatList AReturn ElseIf ElseIfList Else MExpr Expr MExprList Declaration PrefixExp PFExprSuffix ExprSuffixList Args Field FieldList VarsList
+    chn number :: Int -- Label number
 
 attr AST
     syn controlflow :: {Gr NodeThing EdgeLabel}
     inh reversed :: Bool
 
-attr AST Block MStat Stat MStatList ElseIf ElseIfList Else AReturn
+attr AST Block MStat Stat MStatList ElseIf ElseIfList Else AReturn MExpr Expr MExprList Declaration PrefixExp PFExprSuffix ExprSuffixList Args Field FieldList VarsList
     syn nodes use {++} {[]} :: {[ANode]} -- The nodes of the graph
     syn edges use {++} {[]} :: {[AEdge]} -- The edges of the graph
     syn breaks use {++} {[]} ::  {[(Int, EdgeLabel)]} -- Where the breaks go to
@@ -73,8 +75,17 @@ attr AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Arg
     syn copy :: self
 
 attr Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else AReturn
-    chn localFnEnv :: {FuncEnv}
+    chn localFnEnv :: {FuncEnv} -- Dynamic dispatch: figure out where functions are defined
     chn globalFnEnv :: {FuncEnv}
+
+attr Declaration
+    syn fnEnv :: {FuncEnv} -- don't know whether local or global
+
+attr MExpr Expr
+    syn funs use {++} {[]} :: {[FuncInfo]}
+
+attr PrefixExp PFExprSuffix ExprSuffixList PFExprSuffix
+    syn ddispatch :: {DDispatch} -- identifiers for variables/function calls
 
 attr ElseIf ElseIfList Else
     chn failNumber :: Int -- Where the last (else)if is
@@ -110,16 +121,21 @@ sem MStatList
                  loc.firstNumber            = @lhs.firstNumber
                  loc.lastNumbers            = []
 
+sem Declaration
+    | Tuple      lhs.fnEnv                  = M.singleton @x1.ddispatch @x2.funs -- TODO: turn PrefixExpr into a DDispatch,
+                 lhs.number                 = @x2.number
+                 x2.number                  = @lhs.number + 1
+
 sem ElseIf
     | Tuple
                  lhs.number                 = @x2.number
                  lhs.firstNumber            = @lhs.number
                  lhs.lastNumbers            = @x2.lastNumbers -- TODO: handle condition failed edges separately
                  x2.number                  = @lhs.number + 1
-                 lhs.nodes                  = [(@lhs.number, NElseIf @loc.copy)] ++ @x2.nodes
+                 lhs.nodes                  = [(@lhs.number, NElseIf @loc.copy)] ++ @x1.nodes ++ @x2.nodes
                  lhs.edges                  = (@lhs.number, @x2.firstNumber, True) :
                                               (if @lhs.failNumber == -1 then [] else [(@lhs.number, @lhs.failNumber, False)]) ++ -- failed edge
-                                              @x2.edges
+                                              @x1.edges ++ @x2.edges
                  lhs.failNumber             = @lhs.number
 
 sem ElseIfList
@@ -167,12 +183,12 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
             | Def        lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, True)]
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)]
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @vars.nodes
 
             | LocDef     lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, True)]
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)]
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @vars.nodes
 
             | AFuncCall  lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
@@ -210,26 +226,29 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.edges          = @body.edges
 
             | AWhile     lhs.number         = @body.number
-                         body.number        = @lhs.number + 1
+                         cond.number        = @lhs.number + 1
+                         body.number        = @cond.number
                          loc.firstNumber    = @lhs.number
                          body.cont          = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, False)] ++ @body.breaks
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @cond.nodes
                          lhs.edges          = (@loc.firstNumber, @body.firstNumber, True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
-                                              @body.edges
+                                              @body.edges ++ @cond.edges
 
-            | ARepeat    lhs.number         = @body.number
+            | ARepeat    lhs.number         = @cond.number
                          body.number        = @lhs.number + 1
+                         cond.number        = @body.number
                          loc.firstNumber    = @body.firstNumber
                          body.cont          = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, False)] ++ @body.breaks
-                         lhs.nodes          = @body.nodes ++ [(@lhs.number, NStat @loc.copy)]
+                         lhs.nodes          = @body.nodes ++ [(@lhs.number, NStat @loc.copy)] ++ @cond.nodes
                          lhs.edges          = (@lhs.number, @body.firstNumber, True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
-                                              @body.edges
+                                              @body.edges ++ @cond.edges
 
-            | AIf        body.number        = @lhs.number + 1
+            | AIf        cond.number        = @lhs.number + 1
+                         body.number        = @cond.number
                          elifs.number       = @body.number
                          elifs.failNumber   = -1
                          -- link condition failed of either last elseif or the if to the else:
@@ -247,34 +266,40 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                                               -- The ends of all the blocks of the body, elseifs and elses
                                               @body.lastNumbers ++ @elifs.lastNumbers ++ @els.lastNumbers
                          loc.nodes          = (@lhs.number, NStat @loc.copy) :
+                                              @cond.nodes ++
                                               @body.nodes ++
                                               @elifs.nodes ++
                                               @els.nodes
                          lhs.edges          = -- Condition fail edges:
                                               -- make edge between condition failed of if to elseifs if they exist
                                               (if @loc.elifExists then [(@lhs.number, @elifs.firstNumber, False)] else []) ++
+                                              @cond.edges ++
                                               [(@lhs.number, @body.firstNumber, True)] ++
                                               @body.edges ++ @elifs.edges ++ @els.edges
 
-            | ANFor      body.number        = @lhs.number + 1
+            | ANFor      val.number         = @lhs.number + 1
+                         to.number          = @val.number
+                         step.number        = @to.number
+                         body.number        = @step.number
                          lhs.number         = @body.number
                          loc.firstNumber    = @lhs.number
                          body.cont          = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, False)] ++ @body.breaks -- End of for loop
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @val.nodes ++ @to.nodes ++ @step.nodes
                          lhs.edges          = (@loc.firstNumber, @body.firstNumber, True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
-                                              @body.edges
+                                              @body.edges ++ @val.edges ++ @to.edges ++ @step.edges
 
-            | AGFor      body.number        = @lhs.number + 1
+            | AGFor      vals.number        = @lhs.number + 1
+                         body.number        = @vals.number
                          lhs.number         = @body.number
                          loc.firstNumber    = @lhs.number
                          body.cont          = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, False)] ++ @body.breaks  -- End of for loop
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @vals.nodes
                          lhs.edges          = (@loc.firstNumber, @body.firstNumber, True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
-                                              @body.edges
+                                              @body.edges ++ @vals.edges
 
             | AFunc       -- TODO: functions
                          lhs.number         = @lhs.number + 1
@@ -286,3 +311,43 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+
+
+ -- TODO: dispatch
+sem PrefixExp
+    | PFVar                 lhs.ddispatch   = undefined
+                            lhs.number      = @lhs.number
+    | ExprVar               lhs.ddispatch   = undefined
+                            expr.number     = @lhs.number + 1
+                            lhs.number      = @expr.number
+
+sem PFExprSuffix
+    | Call                  lhs.ddispatch   = undefined
+    | MetaCall              lhs.ddispatch   = undefined
+    | ExprIndex             lhs.ddispatch   = undefined
+                            lhs.number      = @index.number
+                            index.number    = @lhs.number + 1
+    | DotIndex              lhs.ddispatch   = undefined
+
+
+sem Expr
+    | ANil                  lhs.funs       = []
+    | AFalse                lhs.funs       = []
+    | ATrue                 lhs.funs       = []
+    | ANumber               lhs.funs       = []
+    | AString               lhs.funs       = []
+    | AVarArg               lhs.funs       = []
+    | AnonymousFunc         lhs.funs       = [] -- TODO: function start and end labels
+                            body.number    = @lhs.number + 1
+                            lhs.number     = @body.number
+                            lhs.nodes      = @body.nodes
+                            lhs.edges      = @body.edges
+    | APrefixExpr           lhs.funs       = []
+    | ATableConstructor     lhs.funs       = []
+    | BinOpExpr             lhs.funs       = []
+                            lhs.number     = @right.number
+                            left.number    = @lhs.number + 1
+                            right.number   = @left.number
+    | UnOpExpr              lhs.funs       = []
+                            right.number   = @lhs.number + 1
+                            lhs.number     = @right.number
