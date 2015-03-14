@@ -21,7 +21,7 @@ instance Show NodeThing where
     show (NExpr s) = "NExpr (" ++ (PP.renderMExpr s) ++ ")"
     show (NElseIf (x, y)) = "NElseIf (elseif " ++ (PP.renderMExpr x) ++ " then <block> )"
 
-type EdgeLabel = Bool -- TODO: different label for edges
+data EdgeLabel = Intra Bool | Inter deriving (Show)
 type ANode = LNode NodeThing
 type AEdge = LEdge EdgeLabel
 type AnalysisGraph = (Gr NodeThing EdgeLabel, [Int])
@@ -143,8 +143,8 @@ sem ElseIf
                  lhs.lastNumbers            = @x2.lastNumbers -- TODO: handle condition failed edges separately
                  x2.number                  = @lhs.number + 1
                  lhs.nodes                  = [(@lhs.number, NElseIf @loc.copy)] ++ @x1.nodes ++ @x2.nodes
-                 lhs.edges                  = (@lhs.number, @x2.firstNumber, True) :
-                                              (if @lhs.failNumber == -1 then [] else [(@lhs.number, @lhs.failNumber, False)]) ++ -- failed edge
+                 lhs.edges                  = (@lhs.number, @x2.firstNumber, Intra True) :
+                                              (if @lhs.failNumber == -1 then [] else [(@lhs.number, @lhs.failNumber, Intra False)]) ++ -- failed edge
                                               @x1.edges ++ @x2.edges
                  lhs.failNumber             = @lhs.number
                  x2.localFnEnv              = M.empty : @lhs.localFnEnv
@@ -168,7 +168,7 @@ sem Else
                  lhs.firstNumber            = @lhs.number
                  lhs.lastNumbers            = @just.lastNumbers
                                               -- make edge between condition failed of last (else)if to else
-                 lhs.edges                  = (@lhs.failNumber, @lhs.number, False) :
+                 lhs.edges                  = (@lhs.failNumber, @lhs.number, Intra False) :
                                               @just.edges
                  just.localFnEnv            = M.empty : @lhs.localFnEnv
                  lhs.localFnEnv             = tail @lhs.localFnEnv
@@ -194,41 +194,41 @@ sem MStat | MStat
 
 
 sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, True)]
+                         loc.lastNumbers    = [(@lhs.number, Intra True)]
 
             | Def        lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, True)]
+                         loc.lastNumbers    = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @vars.nodes
                          lhs.globalFnEnv    = @lhs.globalFnEnv `M.union` @vars.fnEnv
 
             | LocDef     lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, True)]
+                         loc.lastNumbers    = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @vars.nodes
                          lhs.localFnEnv     = ((head @lhs.localFnEnv) `M.union` @vars.fnEnv) : tail @lhs.localFnEnv -- add to deepest scope
 
             | AFuncCall  lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, True)]
+                         loc.lastNumbers    = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] -- todo: function calls
 
             | ALabel     lhs.number         = @lhs.number + 1
                          lhs.labEnvS        = M.singleton (tokenLabel @lbl) (@lhs.number)
                          loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, True)]
+                         loc.lastNumbers    = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)]
 
             | ABreak     lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [] -- [(@lhs.number, True)]
-                         lhs.breaks         = [(@lhs.number, True)]
+                         lhs.breaks         = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)]
 
             | AContinue  lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [] -- [(@lhs.number, True)]
-                         lhs.edges          = [(@lhs.number,@lhs.cont, True)]
+                         lhs.edges          = [(@lhs.number,@lhs.cont, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)]
 
             | AGoto      lhs.number         = @lhs.number + 1
@@ -250,9 +250,9 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          body.number        = @cond.number
                          loc.firstNumber    = @lhs.number
                          body.cont          = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, False)] ++ @body.breaks
+                         loc.lastNumbers    = [(@lhs.number, Intra False)] ++ @body.breaks
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @cond.nodes
-                         lhs.edges          = (@loc.firstNumber, @body.firstNumber, True) :
+                         lhs.edges          = (@loc.firstNumber, @body.firstNumber, Intra True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
                                               @body.edges ++ @cond.edges
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
@@ -263,9 +263,9 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          cond.number        = @body.number
                          loc.firstNumber    = @body.firstNumber
                          body.cont          = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, False)] ++ @body.breaks
+                         loc.lastNumbers    = [(@lhs.number, Intra False)] ++ @body.breaks
                          lhs.nodes          = @body.nodes ++ [(@lhs.number, NStat @loc.copy)] ++ @cond.nodes
-                         lhs.edges          = (@lhs.number, @body.firstNumber, True) :
+                         lhs.edges          = (@lhs.number, @body.firstNumber, Intra True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
                                               @body.edges ++ @cond.edges
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
@@ -287,7 +287,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          loc.elsExists      = not . null $ @els.lastNumbers
                          lhs.lastNumbers    = -- Condition failed edges of last (else)if, if no else exists
                                               (if not @loc.elsExists then
-                                                [(@loc.failNumber, False)]
+                                                [(@loc.failNumber, Intra False)]
                                                else []) ++
                                               -- The ends of all the blocks of the body, elseifs and elses
                                               @body.lastNumbers ++ @elifs.lastNumbers ++ @els.lastNumbers
@@ -298,9 +298,9 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                                               @els.nodes
                          lhs.edges          = -- Condition fail edges:
                                               -- make edge between condition failed of if to elseifs if they exist
-                                              (if @loc.elifExists then [(@lhs.number, @elifs.firstNumber, False)] else []) ++
+                                              (if @loc.elifExists then [(@lhs.number, @elifs.firstNumber, Intra False)] else []) ++
                                               @cond.edges ++
-                                              [(@lhs.number, @body.firstNumber, True)] ++
+                                              [(@lhs.number, @body.firstNumber, Intra True)] ++
                                               @body.edges ++ @elifs.edges ++ @els.edges
 
             | ANFor      val.number         = @lhs.number + 1
@@ -312,9 +312,9 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.localFnEnv     = tail @lhs.localFnEnv
                          loc.firstNumber    = @lhs.number
                          body.cont          = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, False)] ++ @body.breaks -- End of for loop
+                         loc.lastNumbers    = [(@lhs.number, Intra False)] ++ @body.breaks -- End of for loop
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @val.nodes ++ @to.nodes ++ @step.nodes
-                         lhs.edges          = (@loc.firstNumber, @body.firstNumber, True) :
+                         lhs.edges          = (@loc.firstNumber, @body.firstNumber, Intra True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
                                               @body.edges ++ @val.edges ++ @to.edges ++ @step.edges
 
@@ -325,23 +325,23 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          body.cont          = @lhs.number
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
                          lhs.localFnEnv     = tail @lhs.localFnEnv
-                         loc.lastNumbers    = [(@lhs.number, False)] ++ @body.breaks  -- End of for loop
+                         loc.lastNumbers    = [(@lhs.number, Intra False)] ++ @body.breaks  -- End of for loop
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @vals.nodes
-                         lhs.edges          = (@loc.firstNumber, @body.firstNumber, True) :
+                         lhs.edges          = (@loc.firstNumber, @body.firstNumber, Intra True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
                                               @body.edges ++ @vals.edges
 
             | AFunc       -- TODO: functions
                          lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, True)]
+                         loc.lastNumbers    = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
                          lhs.localFnEnv     = tail @lhs.localFnEnv
 
             | ALocFunc   lhs.number         = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, True)]
+                         loc.lastNumbers    = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
                          lhs.localFnEnv     = tail @lhs.localFnEnv
