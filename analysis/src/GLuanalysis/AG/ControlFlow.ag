@@ -121,7 +121,7 @@ attr Declaration VarsList
 attr MExpr Expr FieldList Field
     syn funs use {++} {[]} :: {[FuncInfo]}
 
-attr PrefixExp PFExprSuffix PFExprSuffix
+attr PrefixExp PFExprSuffix PFExprSuffix FuncName
     syn ddispatch :: {DDispatch} -- identifiers for variables/function calls
 
 attr ElseIf ElseIfList Else
@@ -287,7 +287,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          loc.firstNumber    = @body.firstNumber
                          loc.lastNumbers    = @body.lastNumbers
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = tail @lhs.localFnEnv
+                         lhs.localFnEnv     = @lhs.localFnEnv
                          lhs.nodes          = @body.nodes
                          lhs.edges          = @body.edges
                          body.makeReturn    = False
@@ -303,7 +303,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
                                               @body.edges ++ @cond.edges
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = tail @lhs.localFnEnv
+                         lhs.localFnEnv     = @lhs.localFnEnv
                          body.makeReturn    = False
 
             | ARepeat    lhs.number         = @cond.number
@@ -317,13 +317,13 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
                                               @body.edges ++ @cond.edges
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = tail @lhs.localFnEnv
+                         lhs.localFnEnv     = @lhs.localFnEnv
                          body.makeReturn    = False
 
             | AIf        cond.number        = @lhs.number + 1
                          body.number        = @cond.number
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = tail @lhs.localFnEnv
+                         lhs.localFnEnv     = @lhs.localFnEnv
                          elifs.number       = @body.number
                          elifs.failNumber   = -1
                          -- link condition failed of either last elseif or the if to the else:
@@ -359,7 +359,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          body.number        = @step.number
                          lhs.number         = @body.number
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = tail @lhs.localFnEnv
+                         lhs.localFnEnv     = @lhs.localFnEnv
                          loc.firstNumber    = @lhs.number
                          body.cont          = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, Intra False)] ++ @body.breaks -- End of for loop
@@ -375,7 +375,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          loc.firstNumber    = @lhs.number
                          body.cont          = @lhs.number
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = tail @lhs.localFnEnv
+                         lhs.localFnEnv     = @lhs.localFnEnv
                          loc.lastNumbers    = [(@lhs.number, Intra False)] ++ @body.breaks  -- End of for loop
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @vals.nodes
                          lhs.edges          = (@loc.firstNumber, @body.firstNumber, Intra True) :
@@ -389,8 +389,10 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = tail @lhs.localFnEnv
+                         lhs.localFnEnv     = @lhs.localFnEnv
                          body.makeReturn    = True
+                         loc.fun            = map (\i -> (@body.firstNumber, i)) @body.returnNumbers
+                         lhs.globalFnEnv    = M.insert @name.ddispatch @loc.fun @lhs.globalFnEnv
 
             | ALocFunc   lhs.number         = @body.number
                          body.number        = @lhs.number + 1
@@ -398,11 +400,13 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = tail @lhs.localFnEnv
                          body.makeReturn    = True
+                         loc.fun            = map (\i -> (@body.firstNumber, i)) @body.returnNumbers
+                         lhs.localFnEnv     = (M.insert @name.ddispatch @loc.fun (head @lhs.localFnEnv)) : (tail @lhs.localFnEnv)
 
+sem FuncName
+    | FuncName              lhs.ddispatch   = Var (head @names) -- TODO: suffixes?
 
- -- TODO: dispatch
 sem PrefixExp
     | PFVar                 lhs.ddispatch   = Var @name -- TODO: suffix expressions?
                             lhs.number      = @lhs.number
