@@ -86,7 +86,7 @@ attr Declaration VarsList
 attr MExpr Expr
     syn funs use {++} {[]} :: {[FuncInfo]}
 
-attr PrefixExp PFExprSuffix ExprSuffixList PFExprSuffix
+attr PrefixExp PFExprSuffix PFExprSuffix
     syn ddispatch :: {DDispatch} -- identifiers for variables/function calls
 
 attr ElseIf ElseIfList Else
@@ -365,6 +365,7 @@ sem Expr
     | AVarArg               lhs.funs       = []
     | AnonymousFunc         lhs.funs       = map (\i -> (@body.firstNumber, i)) @body.returnNumbers
                             body.number    = @lhs.number + 1
+                            body.cont      = 0
                             lhs.number     = @body.number
                             lhs.nodes      = @body.nodes
                             lhs.edges      = @body.edges
