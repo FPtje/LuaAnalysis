@@ -38,17 +38,19 @@ include "../../GLua/AG/AST.ag"
 
 {
 
-data NodeThing = NStat Stat | CallEntry Stat | CallExit Stat | NReturn AReturn | NExpr MExpr | NElseIf ElseIf
+data NodeThing = NStat Stat | CallEntry Stat | CallExit Stat | ExprCallEntry MExpr | ExprCallExit MExpr | NReturn AReturn | NExpr MExpr | NElseIf ElseIf
 
 instance Show NodeThing where
     show (NStat s) = "NStat (" ++ (PP.renderStat s) ++ ")"
     show (CallEntry s) = "CallEntry (" ++ (PP.renderStat s) ++ ")"
     show (CallExit s) = "CallExit (" ++ (PP.renderStat s) ++ ")"
+    show (ExprCallEntry s) = "ExprCallEntry (" ++ (PP.renderMExpr s) ++ ")"
+    show (ExprCallExit s) = "ExprCallExit (" ++ (PP.renderMExpr s) ++ ")"
     show (NReturn s) = "NReturn (" ++ (PP.renderAReturn s) ++ ")"
     show (NExpr s) = "NExpr (" ++ (PP.renderMExpr s) ++ ")"
     show (NElseIf (x, y)) = "NElseIf (elseif " ++ (PP.renderMExpr x) ++ " then <block>)"
 
-data EdgeLabel = Intra Bool | Inter (Node, Node, Node, Node) deriving (Show)
+data EdgeLabel = Intra Bool | Inter (Node, Node, Node, Node) | ExprInter Bool deriving (Show)
 type ANode = LNode NodeThing
 type AEdge = LEdge EdgeLabel
 type AnalysisGraph = (Gr NodeThing EdgeLabel, [Int])
@@ -76,7 +78,7 @@ buildEdgesTo :: Int -> [(Int, EdgeLabel)] -> [AEdge]
 buildEdgesTo end es = map f es where
     f (i, l) = (i, end, l)
 
-data DDispatch = Var MToken | Table DDispatch deriving (Eq, Ord, Show)
+data DDispatch = Var MToken deriving (Eq, Ord, Show)
 type FuncInfo = (Node, Node) -- start and end labels
 type FuncEnv = M.Map DDispatch [FuncInfo]
 
@@ -121,8 +123,8 @@ attr Declaration VarsList
 attr MExpr Expr FieldList Field
     syn funs use {++} {[]} :: {[FuncInfo]}
 
-attr PrefixExp PFExprSuffix PFExprSuffix FuncName
-    syn ddispatch :: {DDispatch} -- identifiers for variables/function calls
+attr PrefixExp PFExprSuffix PFExprSuffix FuncName Expr
+    syn ddispatch use {const} {Var (MToken (LineColPos 0 0 0) Nil)} :: {DDispatch} -- identifiers for variables/function calls
 
 attr ElseIf ElseIfList Else
     chn failNumber :: Int -- Where the last (else)if is
@@ -134,6 +136,13 @@ attr MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf El
 
 attr Block AReturn
     inh makeReturn :: Bool -- whether a return should be made if not present. Used for function definitions
+
+attr ExprSuffixList PFExprSuffix PrefixExp Expr
+    syn isCall use {&&} {False} :: Bool
+
+attr MExpr MExprList VarsList Declaration
+    syn exprInterCall use {++} {[]} :: {[Int]}
+    syn exprInterReturn use {++} {[]} :: {[(Int, EdgeLabel)]}
 
 sem AST |
     AST lhs.controlflow = mkGraph @chunk.nodes @loc.edges
@@ -238,6 +247,8 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @vars.nodes
                          lhs.globalFnEnv    = @lhs.globalFnEnv `M.union` @vars.fnEnv
+                         +edges             = (++) $ buildEdgesTo @lhs.number @vars.exprInterReturn ++
+                                                    map (\i -> (@lhs.number, i, ExprInter True)) @vars.exprInterCall
 
             | LocDef     lhs.number         = @vars.number
                          vars.number        = @lhs.number + 1
@@ -245,6 +256,8 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @vars.nodes
                          lhs.localFnEnv     = ((head @lhs.localFnEnv) `M.union` @vars.fnEnv) : tail @lhs.localFnEnv -- add to deepest scope
+                         +edges             = (++) $ buildEdgesTo @lhs.number @vars.exprInterReturn ++
+                                                    map (\i -> (@lhs.number, i, ExprInter True)) @vars.exprInterCall
 
             | AFuncCall  lhs.number         = @lhs.number + 2
                          loc.firstNumber    = @lhs.number
@@ -254,10 +267,10 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          loc.interflow      = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
                          loc.interflowR     = map (\(a,b,c,d) -> (d,c,b,a)) @loc.interflow
                          +edges             = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) $
-                                              if @lhs.reversed then
+                                              (if @lhs.reversed then
                                                 @loc.interflowR
                                               else
-                                                @loc.interflow
+                                                @loc.interflow)
 
             | ALabel     lhs.number         = @lhs.number + 1
                          lhs.labEnvS        = M.singleton (tokenLabel @lbl) (@lhs.number)
@@ -301,7 +314,10 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @cond.nodes
                          lhs.edges          = (@loc.firstNumber, @body.firstNumber, Intra True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
-                                              @body.edges ++ @cond.edges
+                                              @body.edges ++ @cond.edges ++
+                                              -- Calls in expressions:
+                                              buildEdgesTo @lhs.number @cond.exprInterReturn ++
+                                              map (\i -> (@lhs.number, i, ExprInter True)) @cond.exprInterCall
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
                          lhs.localFnEnv     = @lhs.localFnEnv
                          body.makeReturn    = False
@@ -315,7 +331,10 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.nodes          = @body.nodes ++ [(@lhs.number, NStat @loc.copy)] ++ @cond.nodes
                          lhs.edges          = (@lhs.number, @body.firstNumber, Intra True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
-                                              @body.edges ++ @cond.edges
+                                              @body.edges ++ @cond.edges ++
+                                              -- Calls in expressions:
+                                              buildEdgesTo @lhs.number @cond.exprInterReturn ++
+                                              map (\i -> (@lhs.number, i, ExprInter True)) @cond.exprInterCall
                          body.localFnEnv    = M.empty : @lhs.localFnEnv
                          lhs.localFnEnv     = @lhs.localFnEnv
                          body.makeReturn    = False
@@ -350,7 +369,10 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                                               (if @loc.elifExists then [(@lhs.number, @elifs.firstNumber, Intra False)] else []) ++
                                               @cond.edges ++
                                               [(@lhs.number, @body.firstNumber, Intra True)] ++
-                                              @body.edges ++ @elifs.edges ++ @els.edges
+                                              @body.edges ++ @elifs.edges ++ @els.edges ++
+                                              -- Calls in expressions:
+                                              buildEdgesTo @lhs.number @cond.exprInterReturn ++
+                                              map (\i -> (@lhs.number, i, ExprInter True)) @cond.exprInterCall
                          body.makeReturn    = False
 
             | ANFor      val.number         = @lhs.number + 1
@@ -366,7 +388,16 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @val.nodes ++ @to.nodes ++ @step.nodes
                          lhs.edges          = (@loc.firstNumber, @body.firstNumber, Intra True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
-                                              @body.edges ++ @val.edges ++ @to.edges ++ @step.edges
+                                              @body.edges ++ @val.edges ++ @to.edges ++ @step.edges ++
+                                              -- Calls in expressions:
+                                              buildEdgesTo @lhs.number @val.exprInterReturn ++
+                                              map (\i -> (@lhs.number, i, ExprInter True)) @val.exprInterCall ++
+
+                                              buildEdgesTo @lhs.number @to.exprInterReturn ++
+                                              map (\i -> (@lhs.number, i, ExprInter True)) @to.exprInterCall ++
+
+                                              buildEdgesTo @lhs.number @step.exprInterReturn ++
+                                              map (\i -> (@lhs.number, i, ExprInter True)) @step.exprInterCall
                          body.makeReturn    = False
 
             | AGFor      vals.number        = @lhs.number + 1
@@ -380,7 +411,10 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @vals.nodes
                          lhs.edges          = (@loc.firstNumber, @body.firstNumber, Intra True) :
                                               buildEdgesTo @lhs.number @body.lastNumbers ++
-                                              @body.edges ++ @vals.edges
+                                              @body.edges ++ @vals.edges ++
+                                              -- Calls in expressions:
+                                              buildEdgesTo @lhs.number @vals.exprInterReturn ++
+                                              map (\i -> (@lhs.number, i, ExprInter True)) @vals.exprInterCall
                          body.makeReturn    = False
 
             | AFunc      lhs.number         = @body.number
@@ -410,18 +444,42 @@ sem FuncName
 sem PrefixExp
     | PFVar                 lhs.ddispatch   = Var @name -- TODO: suffix expressions?
                             lhs.number      = @lhs.number
-    | ExprVar               lhs.ddispatch   = undefined -- TODO: Expression stuff
+    | ExprVar               lhs.ddispatch   = Var (MToken (LineColPos 0 0 0) Nil) -- TODO: Expression stuff
                             expr.number     = @lhs.number + 1
                             lhs.number      = @expr.number
 
+sem ExprSuffixList
+    | Cons                  lhs.isCall      = if null @tl.copy then @hd.isCall else @hd.isCall && @tl.isCall
+    | Nil                   lhs.isCall      = False
+
 sem PFExprSuffix
     | Call                  lhs.ddispatch   = undefined
+                            lhs.isCall      = True
     | MetaCall              lhs.ddispatch   = undefined
+                            lhs.isCall      = True
     | ExprIndex             lhs.ddispatch   = undefined
+                            lhs.isCall      = False
                             lhs.number      = @index.number
                             index.number    = @lhs.number + 1
     | DotIndex              lhs.ddispatch   = undefined
+                            lhs.isCall      = False
 
+sem MExpr
+    | MExpr                 lhs.number      = if @expr.isCall then @lhs.number + 2 else @lhs.number
+                            lhs.nodes       = if @expr.isCall then
+                                                [(@lhs.number, ExprCallEntry @loc.copy), (@lhs.number + 1, ExprCallExit @loc.copy)]
+                                              else
+                                                []
+                            loc.possibleFuncs  = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @expr.ddispatch
+                            loc.interflow      = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
+                            loc.interflowR     = map (\(a,b,c,d) -> (d,c,b,a)) @loc.interflow
+                            +edges             = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) $
+                                                 if @lhs.reversed then
+                                                   @loc.interflowR
+                                                 else
+                                                   @loc.interflow
+                            lhs.exprInterReturn = if @expr.isCall then [(@lhs.number + 1, ExprInter True)] else []
+                            lhs.exprInterCall   = if @expr.isCall then [@lhs.number] else []
 
 sem Expr
     | ANil                  lhs.funs       = []
