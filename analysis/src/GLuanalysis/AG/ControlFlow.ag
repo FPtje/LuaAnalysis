@@ -13,15 +13,17 @@ include "../../GLua/AG/AST.ag"
 
 {
 
-data NodeThing = NStat Stat | NReturn AReturn | NExpr MExpr | NElseIf ElseIf
+data NodeThing = NStat Stat | CallEntry Stat | CallExit Stat | NReturn AReturn | NExpr MExpr | NElseIf ElseIf
 
 instance Show NodeThing where
     show (NStat s) = "NStat (" ++ (PP.renderStat s) ++ ")"
+    show (CallEntry s) = "CallEntry (" ++ (PP.renderStat s) ++ ")"
+    show (CallExit s) = "CallExit (" ++ (PP.renderStat s) ++ ")"
     show (NReturn s) = "NReturn (" ++ (PP.renderAReturn s) ++ ")"
     show (NExpr s) = "NExpr (" ++ (PP.renderMExpr s) ++ ")"
-    show (NElseIf (x, y)) = "NElseIf (elseif " ++ (PP.renderMExpr x) ++ " then <block> )"
+    show (NElseIf (x, y)) = "NElseIf (elseif " ++ (PP.renderMExpr x) ++ " then <block>)"
 
-data EdgeLabel = Intra Bool | Inter deriving (Show)
+data EdgeLabel = Intra Bool | Inter (Node, Node, Node, Node) deriving (Show)
 type ANode = LNode NodeThing
 type AEdge = LEdge EdgeLabel
 type AnalysisGraph = (Gr NodeThing EdgeLabel, [Int])
@@ -134,7 +136,7 @@ sem MStatList
 sem Declaration
     | Tuple      lhs.fnEnv                  = M.singleton @x1.ddispatch @x2.funs -- TODO: turn PrefixExpr into a DDispatch,
                  lhs.number                 = @x2.number
-                 x2.number                  = @lhs.number + 1
+                 x2.number                  = @lhs.number
 
 sem ElseIf
     | Tuple
@@ -185,7 +187,7 @@ sem AReturn
 
 sem Block | Block loc.nodes                 = @stats.nodes ++ @ret.nodes
                   lhs.edges                 = @stats.edges
-                  lhs.number                = @ret.number + 1
+                  lhs.number                = @ret.number
                   ret.number                = @stats.number
                   lhs.firstNumber           = @stats.firstNumber
                   lhs.lastNumbers           = @stats.lastNumbers
@@ -196,22 +198,32 @@ sem MStat | MStat
 sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, Intra True)]
 
-            | Def        lhs.number         = @lhs.number + 1
+            | Def        lhs.number         = @vars.number
+                         vars.number        = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @vars.nodes
                          lhs.globalFnEnv    = @lhs.globalFnEnv `M.union` @vars.fnEnv
 
-            | LocDef     lhs.number         = @lhs.number + 1
+            | LocDef     lhs.number         = @vars.number
+                         vars.number        = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @vars.nodes
                          lhs.localFnEnv     = ((head @lhs.localFnEnv) `M.union` @vars.fnEnv) : tail @lhs.localFnEnv -- add to deepest scope
 
-            | AFuncCall  lhs.number         = @lhs.number + 1
+            | AFuncCall  lhs.number         = @lhs.number + 2
                          loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, Intra True)]
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] -- todo: function calls
+                         loc.lastNumbers    = [(@lhs.number + 1, Intra True)]
+                         lhs.nodes          = [(@lhs.number, CallEntry @loc.copy), (@lhs.number + 1, CallExit @loc.copy)]
+                         loc.possibleFuncs  = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @fn.ddispatch
+                         loc.interflow      = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
+                         loc.interflowR     = map (\(a,b,c,d) -> (d,c,b,a)) @loc.interflow
+                         +edges             = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) $
+                                              if @lhs.reversed then
+                                                @loc.interflowR
+                                              else
+                                                @loc.interflow
 
             | ALabel     lhs.number         = @lhs.number + 1
                          lhs.labEnvS        = M.singleton (tokenLabel @lbl) (@lhs.number)
@@ -372,7 +384,7 @@ sem Expr
     | AString               lhs.funs       = []
     | AVarArg               lhs.funs       = []
     | AnonymousFunc         lhs.funs       = map (\i -> (@body.firstNumber, i)) @body.returnNumbers
-                            body.number    = @lhs.number + 1
+                            body.number    = @lhs.number
                             body.cont      = 0
                             lhs.number     = @body.number
                             lhs.nodes      = @body.nodes
