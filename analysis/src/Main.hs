@@ -18,8 +18,8 @@ import System.Exit
 import Control.Monad
 import MonotoneFramework
 
-import Reachable
-import LiveVariables
+import qualified Reachable as R
+import qualified LiveVariables as LV
 import SignAnalysis
 
 main = putStrLn "Hello World"
@@ -65,7 +65,7 @@ run file =do
 		putStrLn "Pretty printed code:"
 		putStrLn . prettyprint . fst $ ast
 
-test file = do
+liveVar file = do
 		contents <- readFile file
 
 		-- Lex the file
@@ -84,7 +84,28 @@ test file = do
 			exitWith (ExitFailure 1)
 
 		let ast = parseGLua tokens
+		putStrLn $ show $ mfp LV.mFramework  (getGraphR . fst $ ast)
+                
+signA file = do
+		contents <- readFile file
 
+		-- Lex the file
+		let lex = execParseTokens contents
+		let tokens = fst lex
+		let errors = snd lex
+
+		unless (null errors) $ do
+			mapM_ print errors
+			-- Attempt to fix errors when asked
+			when (True) $ do
+				writeFile file . concatMap show $ tokens
+				putStrLn "Success"
+				exitSuccess
+
+			exitWith (ExitFailure 1)
+
+		let ast = parseGLua tokens
+                
 		putStrLn $ show $ mfp signFramework  (getGraph . fst $ ast)
 
 viewGr file = do
