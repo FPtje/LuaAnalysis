@@ -43,6 +43,9 @@ run file =do
 
 		let ast = parseGLua tokens
 
+		putStrLn "\nGraph:\n"
+		putStrLn . prettify . fst . getGraph . fst $ ast
+
 		putStrLn "\nExtremal nodes:\n"
 		putStrLn . show . snd . getGraph . fst $ ast
 
