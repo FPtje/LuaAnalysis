@@ -22,16 +22,19 @@ type NodeLabels a = M.Map Int a
 
 -- Does initialisation of monotone framework.
 -- outsources the iteration to the "iteration" function
-mfp :: (Show a, Eq a) => MF a -> AnalysisGraph -> NodeLabels a
-mfp mf g@(gr, extremals) = let iter =  iteration mf g workingList lblData
-                           in  iter
-        where 
+mfp :: (Show a, Eq a) => MF a -> AnalysisGraph -> (NodeLabels a, NodeLabels a) -- (open, closed)
+mfp mf g@(gr, extremals) = let iter = iteration mf g workingList lblData
+                           in  (iter, M.mapWithKey mkClosed iter)
+        where
     -- Set all initial value to bottom/iota
     nonExtremals = map (\n -> (n, bottom mf)) . filter (`notElem` extremals) . map fst $ labNodes gr
     extremalVals = map (\i -> (i, iota mf))  extremals
     lblData = M.fromList (extremalVals ++ nonExtremals) -- initial values
 
     workingList = labEdges gr
+
+    -- Create closed set
+    mkClosed k = transfer mf (fromJust (lab gr k))
 
 -- Performs monotone framework iterations
 iteration :: (Show a) => MF a -> AnalysisGraph -> WorkingList -> NodeLabels a -> NodeLabels a
