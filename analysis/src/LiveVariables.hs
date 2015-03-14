@@ -47,6 +47,7 @@ getSets s = case s of
                            declvars' = map (\(PFVar (MToken _ g) _) -> g) declvars --lets assume no function calls for now
                        in (declvars', concatMap findUsedVars usedvars') --deal with local vars
             (AIf (MExpr _ e) _ _ _) -> ([],findUsedVars e)
+            (ABreak) -> ([],[])
             _ -> error (show s)
 
 findUsedVars :: Expr -> [Token]
