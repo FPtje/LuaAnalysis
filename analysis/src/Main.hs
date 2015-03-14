@@ -20,6 +20,7 @@ import MonotoneFramework
 
 import Reachable
 import LiveVariables
+import SignAnalysis
 
 main = putStrLn "Hello World"
 
@@ -84,7 +85,7 @@ test file = do
 
 		let ast = parseGLua tokens
 
-		putStrLn $ show $ mfp mFramework  (getGraphR . fst $ ast)
+		putStrLn $ show $ mfp signFramework  (getGraph . fst $ ast)
 
 viewGr file = do
 		contents <- readFile file
