@@ -23,6 +23,8 @@ graphviz :: (Graph g, Show a, Show b) =>    g a b   -- ^ The graph to format
 i2d :: Int -> Double
 i2d = fromInteger . toInteger
 
+
+-- TODO: cleanup
 graphviz g t (w, h) p@(pw', ph') o =
     let n = labNodes g
 	e = labEdges g
@@ -34,11 +36,11 @@ graphviz g t (w, h) p@(pw', ph') o =
 	--gs = show ((w*(i2d pw))-m)++","++show ((h*(i2d ph))-m)
 	gs = sz (w*(i2d pw)) (h*(i2d ph))
     in "digraph "++t++" {\n"
-	    ++"\tmargin = \"0\"\n"
-	    ++"\tpage = \""++ps++"\"\n"
-	    ++"\tsize = \""++gs++"\"\n"
-	    ++o2s o
-	    ++"\tratio = \"fill\"\n"
+	    -- ++"\tmargin = \"0\"\n"
+	    -- ++"\tpage = \""++ps++"\"\n"
+	    -- ++"\tsize = \""++gs++"\"\n"
+	    -- ++o2s o
+	    -- ++"\tratio = \"fill\"\n"
 	    ++ns
 	    ++es
 	++"}"
@@ -47,10 +49,13 @@ graphviz g t (w, h) p@(pw', ph') o =
 	    where sa = sl a
 	  se (n1, n2, b) = '\t':(show n1 ++ " -> " ++ show n2 ++ sl b ++ "\n")
 
+-- cheapass way to make sure we don't need to give the size and orientation
+graphviz'' g = graphviz g "" (0,0) (1,1) Landscape -- The arguments will be ignored
+
 -- | Format a graph for graphviz with reasonable defaults: title of \"fgl\",
 -- 8.5x11 pages, one page, landscape orientation
 graphviz' :: (Graph g, Show a, Show b) => g a b -> String
-graphviz' g = graphviz g "fgl" (8.5,11.0) (1,1) Landscape
+graphviz' g = graphviz'' g
 
 sq :: String -> String
 sq s@[c]                     = s
