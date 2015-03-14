@@ -9,6 +9,8 @@ import Data.Graph.Inductive.Graph
 import Graphviz
 
 import Data.Char
+import Data.Map (toList)
+import Data.Maybe
 import Data.List (nub,(\\))
 
 import System.FilePath
@@ -150,13 +152,18 @@ deadcodeAnalysis file =
 
                         let ast = parseGLua tokens
                         
-                        let sign = snd $ mfp signFramework  (getGraph . fst $ ast)
-                        let reach = snd $ mfp R.mFramework  (getGraph . fst $ ast)
-                        let lv = snd $ mfp LV.mFramework  (getGraphR . fst $ ast)
-                        let deadcode = undefined -- zipEm sign reach lv
-                        putStrLn ""
-zipEm :: (Show d) => a -> b -> c -> [d]
-zipEm = undefined
+                        let sign = toList $ snd $ mfp signFramework  (getGraph . fst $ ast)
+                        let reach = toList $ snd $ mfp R.mFramework  (getGraph . fst $ ast)
+                        let lv = toList $ snd $ mfp LV.mFramework  (getGraphR . fst $ ast)
+                        let deadcode = catMaybes $ zipEm sign reach lv
+                        putStrLn . show $ deadcode
+zipEm :: [(Node,SignAn)] -> [(Node,Bool)] -> [(Node,[Token])] -> [Maybe Node]
+zipEm = zipWith3 (\(a,b) (c,d) (e,f) -> if a == c && a == e
+                                        then if (toList b) == [] || d == False || f == []
+                                             then Just a
+                                             else Nothing
+                                        else error "unsorted")
+               
 
 viewGr file = do
 		contents <- readFile file
