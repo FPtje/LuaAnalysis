@@ -6,6 +6,7 @@ import GLua.TokenTypes
 import GLua.Parser
 import GLua.AG.PrettyPrint
 import Data.Graph.Inductive.Graph
+import Data.Graph.Inductive.PatriciaTree
 import Graphviz
 
 import Data.Char
@@ -159,11 +160,13 @@ deadcodeAnalysis file =
                         let lv2 = checkLV lv lv' (fst $ getGraph . fst $ ast)
                         let deadcode = catMaybes $ zipEm sign reach lv2
                         let deadcode1 = map (lab (fst $ getGraph . fst $ ast)) deadcode
-                        putStrLn . show $ deadcode-- reach --(fst $ getGraph . fst $ ast)
+                        putStrLn . show $ deadcode1 -- reach --(fst $ getGraph . fst $ ast)
                         
---checkLV :: [(Node,[Token])] -> [(Node,Killset)] -> Gr NodeThing EdgeLabel -> [(Node,Bool)]
---checkLV ((d,e):xs) killsets gr =  let adjacent = suc gr d                                       
- --                                 in (d,and $ map (\x -> elem x a) kill) : checkLV xs killsets gr
+checkLV :: [(Node,[Token])] -> [(Node,LV.KillSet)] -> Gr NodeThing EdgeLabel -> [(Node,Bool)]
+checkLV nodeset ((y,[]):xs) gr = (y,True) : checkLV nodeset xs gr
+checkLV nodeset ((y,g):xs) gr =  let adjacent = suc gr y
+                                     nodeset' = concat $ catMaybes $ map (\x -> lookup x nodeset) adjacent
+                                 in (y,  or $ map (\x -> elem x nodeset') g) : checkLV nodeset xs gr
 checkLV _ _ _ = undefined
 
 zipEm :: [(Node,SignAn)] -> [(Node,Bool)] -> [(Node,Bool)] -> [Maybe Node]
