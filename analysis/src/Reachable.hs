@@ -9,5 +9,6 @@ import GLua.AG.AST
 import Data.List (union,(\\))
 import MonotoneFramework
 
+-- | Monotone framework instance to find all reachable nodes on a graph from the starting vertex.
 mFramework :: MF Bool
 mFramework = MF {joinOp=(||),iota=True,bottom=False,consistent= \a b _ -> a && b,transfer= \_ y -> y}
