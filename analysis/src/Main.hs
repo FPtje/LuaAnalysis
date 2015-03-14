@@ -18,8 +18,8 @@ import System.Exit
 import Control.Monad
 import MonotoneFramework
 
-import Reachable
-import LiveVariables
+import qualified Reachable as R
+import qualified LiveVariables as LV
 
 main = putStrLn "Hello World"
 
@@ -42,9 +42,6 @@ run file =do
 			exitWith (ExitFailure 1)
 
 		let ast = parseGLua tokens
-
-		putStrLn "\nGraph:\n"
-		putStrLn . prettify . fst . getGraph . fst $ ast
 
 		putStrLn "\nExtremal nodes:\n"
 		putStrLn . show . snd . getGraph . fst $ ast
@@ -84,7 +81,7 @@ test file = do
 
 		let ast = parseGLua tokens
 
-		putStrLn $ show $ mfp mFramework  (getGraphR . fst $ ast)
+		putStrLn $ show $ mfp LV.mFramework  (getGraphR . fst $ ast)
 
 viewGr file = do
 		contents <- readFile file
