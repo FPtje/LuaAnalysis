@@ -16,7 +16,7 @@ data LVNode = LV KillSet GenSet
         deriving Show
 
 mFramework :: MF [Token]
-mFramework = MF {joinOp=(++),iota=[],bottom=[],consistent=subset,transfer=lvEntry}
+mFramework = MF {joinOp=union,iota=[],bottom=[],consistent=subset,transfer=lvEntry}
 
 --lvEntry :: [[Token]] -> [Token]
 --lvEntry (x:xs) = union x (lvEntry xs)

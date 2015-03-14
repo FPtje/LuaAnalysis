@@ -45,8 +45,8 @@ iteration mf g@(gr, _) ((l, l', lbl) : xs) nl = if consistent mf transferred toN
 
     fromNodeVal = nl M.! l -- A[l]
     toNodeVal   = nl M.! l' -- A[l']
-    lLabel'     = fromJust $ lab gr l'
-    transferred = transfer mf lLabel' fromNodeVal  -- f_l(A[l])
+    lLabel     = fromJust $ lab gr l
+    transferred = transfer mf lLabel fromNodeVal  -- f_l(A[l])
 
     -- A[l'] := A[l'] ⨆ f_l(A[l]);
     newNl = M.insert l' (joinOp mf toNodeVal transferred) nl
