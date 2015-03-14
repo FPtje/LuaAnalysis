@@ -212,16 +212,19 @@ sem AReturn
     | AReturn    lhs.nodes                  = [(@lhs.number, NReturn @loc.copy)]
                  lhs.number                 = @lhs.number + 1
                  lhs.returnNumbers          = [@lhs.number]
+                 lhs.firstNumber            = @lhs.number
     | NoReturn   lhs.nodes                  = if @lhs.makeReturn then [(@lhs.number, NReturn @loc.copy)] else []
                  lhs.number                 = if @lhs.makeReturn then @lhs.number + 1 else @lhs.number
                  lhs.returnNumbers          = if @lhs.makeReturn then [@lhs.number] else []
+                 lhs.firstNumber            = @lhs.number
 
 sem Block | Block loc.nodes                 = @stats.nodes ++ @ret.nodes
-                  lhs.edges                 = @stats.edges
+                  lhs.edges                 = @stats.edges ++ (if @loc.noReturn then [] else buildEdgesTo @ret.firstNumber @stats.lastNumbers)
                   lhs.number                = @ret.number
                   ret.number                = @stats.number
-                  lhs.firstNumber           = @stats.firstNumber
-                  lhs.lastNumbers           = @stats.lastNumbers
+                  lhs.firstNumber           = if null @stats.copy then @ret.firstNumber else @stats.firstNumber
+                  lhs.lastNumbers           = if @loc.noReturn then @stats.lastNumbers else [] -- don't add edges when there's a return
+                  loc.noReturn              = null @ret.returnNumbers
 
 sem MStat | MStat
 
@@ -380,8 +383,8 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                                               @body.edges ++ @vals.edges
                          body.makeReturn    = False
 
-            | AFunc       -- TODO: functions
-                         lhs.number         = @lhs.number + 1
+            | AFunc      lhs.number         = @body.number
+                         body.number        = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
@@ -389,7 +392,8 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.localFnEnv     = tail @lhs.localFnEnv
                          body.makeReturn    = True
 
-            | ALocFunc   lhs.number         = @lhs.number + 1
+            | ALocFunc   lhs.number         = @body.number
+                         body.number        = @lhs.number + 1
                          loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number, Intra True)]
                          lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
