@@ -1,0 +1,59 @@
+\documentclass[10pt]{article}
+\usepackage{hyperref}
+\usepackage[utf8]{inputenc}
+
+%\title{Report for Automatic Program Analysis project 1}
+\title{Automatic Lua Code Analysis}
+\author{Eduard van der Bent \and Frank Dedden \and Wilco Kusee \and Falco Peijnenburg}
+
+
+\begin{document}
+\maketitle
+
+% Omschrijving van de code
+% - Architectuur DONE
+% - Howto compile
+% - Howto run
+% - Dependencies
+% - Design choices / highlevel description
+
+\section{Architecture}
+% TODO: komen er nog meer bestanden?
+When we take a look inside the \texttt{analysis/src} directory, we can see the following files and directories:
+\begin{itemize}
+	\item \texttt{GLua/}
+	\item \texttt{GLuanalysis/}
+	\item \texttt{Graphviz.hs}
+	\item \texttt{LiveVariables.hs}
+	\item \texttt{Main.hs}
+	\item \texttt{MonotoneFramework.hs}
+	\item \texttt{Reachable.hs}
+	\item \texttt{SignAnalysis.hs}
+\end{itemize}
+
+Inside the \texttt{GLua} directory, we can find our implementation of a Lua parser. This parser is implemented in the Attribute Grammer system using the \texttt{uuagc} compiler. It creates an abstract syntax tree of the Lua language. % Leggen we niet verder uit, is niet echt onderdeel van het practicum
+
+The \texttt{GLuanalysis} directory houses the Attribute Grammar system that is used for the analysis of the Lua code. \texttt{AG/ControlFLow.ag} is the AG code that creates a control flow graph from the abstract syntax tree. This graph is later used to construct a monotone framework in the file \texttt{MonotoneFramework.hs}. This monotone framework is then used for analysing the input code. \texttt{LiveVariables.hs} provides functions that check wether the variables in the input Lua code are either dead or alive. Similarly \texttt{reachable.hs} and \texttt{SignAnalysis.hs} check the code for reachable expressions and %TODO: wat is sign analysis.
+\texttt{Main.hs} provides some easy to use functions for applying the analyses that are found in the files described above.
+
+\section{Compiling and runnings}
+% TODO: de mainfile wordt misschien nog aangepast? dus het runnen ook?
+
+
+\section{High level description}
+
+
+
+\section{Nog wat andere zooi welke nog een kopje moeten krijgen}
+% - wat zijn de beperkingen
+% - wat is de lattice
+% - hoe is join defineerd
+% - gebruik van widening?
+% - wat is de operator?
+
+\section{Examples}
+% Hier komen de examples
+% Minstens een example moet nader uitgelegd worden
+
+
+\end{document}
