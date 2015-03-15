@@ -149,10 +149,14 @@ set ExprStuff       = PrefixExp PFExprSuffix MExpr Expr MExprList ExprSuffixList
 set VarStuff        = Args Field FieldList Declaration VarsList
 
 attr StatementStuff IfStuff ExprStuff VarStuff FuncName BinOp UnOp
+    -- Copy of tree
     syn copy :: self
-    chn localFnEnv :: {[FuncEnv]} -- Dynamic dispatch: figure out where functions are defined
+    -- Dynamic dispatch: figure out where functions are defined. Globally.
     chn globalFnEnv :: {FuncEnv}
-    syn returnNumbers use {++} {[]} :: {[Node]} -- Where the return statements are
+    -- And locally
+    chn localFnEnv :: {[FuncEnv]}
+    -- Where the return statements are
+    syn returnNumbers use {++} {[]} :: {[Node]}
 
 attr StatementStuff IfStuff ExprStuff VarStuff BinOp UnOp
     -- Label environments are linked in AST level to force it to be fully generated
@@ -160,45 +164,61 @@ attr StatementStuff IfStuff ExprStuff VarStuff BinOp UnOp
     inh labEnvI :: {LabelEnv}
 
 attr AST StatementStuff IfStuff ExprStuff VarStuff
-    syn nodes use {++} {[]} :: {[ANode]} -- The nodes of the graph
-    syn edges use {++} {[]} :: {[AEdge]} -- The edges of the graph
-    syn breaks use {++} {[]} ::  {[(Int, EdgeLabel)]} -- Where the breaks go to
-
+    -- The nodes of the graph
+    syn nodes use {++} {[]} :: {[ANode]}
+    -- The edges of the graph
+    syn edges use {++} {[]} :: {[AEdge]}
+    -- Where the breaks go to
+    syn breaks use {++} {[]} ::  {[(Int, EdgeLabel)]}
+    -- Whether the tree is reversed
     inh reversed :: Bool
-
-    chn firstNumber :: Int -- Deciding flow: the first node of a statement/block/...
-    chn lastNumbers :: {[(Int, EdgeLabel)]} -- Deciding flow: the last node(s) of a statement/block/...
+    -- Deciding flow: the first node of a statement/block/...
+    chn firstNumber :: Int
+    -- Deciding flow: the last node(s) of a statement/block/...
+    chn lastNumbers :: {[(Int, EdgeLabel)]}
 
 attr StatementStuff IfStuff ExprStuff VarStuff
-    chn number :: Int -- Label number
+    -- Label number
+    chn number :: Int
 
 attr StatementStuff IfStuff
-    inh cont :: Int -- Continues: where to return to
+    -- For continue statements: where to return to
+    inh cont :: Int
 
 attr MExpr Expr FieldList Field
+    -- Any (anonymous) functions defined in this expression
     syn funs use {++} {[]} :: {[FuncInfo]}
 
 attr PrefixExp PFExprSuffix PFExprSuffix FuncName Expr
-    syn ddispatch use {const} {Var (MToken (LineColPos 0 0 0) Nil)} :: {DDispatch} -- identifiers for variables/function calls
+    -- Possible identifiers for variables/function calls
+    syn ddispatch use {const} {Var (MToken (LineColPos 0 0 0) Nil)} :: {DDispatch}
 
 attr ExprSuffixList PFExprSuffix PrefixExp Expr
-    syn isCall use {&&} {False} :: Bool -- Whether an expression represents a call
+    -- Whether an expression represents a function call
+    syn isCall use {&&} {False} :: Bool
 
 attr MExpr MExprList VarsList Declaration
-    syn exprInterCall use {++} {[]} :: {[Int]} -- Function calls in expressions
-    syn exprInterReturn use {++} {[]} :: {[(Int, EdgeLabel)]} -- Make links from and to expressions that represent calls
+    -- Function calls in expressions, starting numbers
+    syn exprInterCall use {++} {[]} :: {[Int]}
+    -- Store links for future returns from the function in the expression to the caller
+    syn exprInterReturn use {++} {[]} :: {[(Int, EdgeLabel)]}
 
 attr Declaration VarsList
-    syn fnEnv use {M.union} {M.empty} :: {FuncEnv} -- don't know whether local or global
+    -- Functions defined in declarations
+    syn fnEnv use {M.union} {M.empty} :: {FuncEnv}
 
 attr AST
+    -- The control flow graph of the AST
     syn controlflow :: {Gr NodeThing EdgeLabel}
 
 attr Block AReturn
-    inh makeReturn :: Bool -- whether a return should be made if not present. Used for function definitions
+    -- Whether a return should be made if not present.
+    -- All functions must have at least one return.
+    inh makeReturn :: Bool
 
 attr IfStuff
-    chn failNumber :: Int -- Where the last (else)if is
+    -- Where the edge should go if the condition of an (else)If statement fails
+    chn failNumber :: Int
 
 {-
 ███████╗███████╗███╗   ███╗ █████╗ ███╗   ██╗████████╗██╗ ██████╗███████╗
