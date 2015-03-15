@@ -564,7 +564,7 @@ sem MExpr
         loc.interflowR          = map (\(a,b,c,d) -> (d,c,b,a)) @loc.interflowF
         loc.interflow           = if @lhs.reversed then @loc.interflowR else @loc.interflowF
         +edges                  = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) @loc.interflow
-        lhs.exprInterReturn     = if @expr.isCall then [(@lhs.number + 1, ExprInter True)] else []
+        lhs.exprInterReturn     = if @expr.isCall then [(@lhs.number + 1, ExprInter False)] else []
         lhs.exprInterCall       = if @expr.isCall then [@lhs.number] else []
 
 sem Expr
