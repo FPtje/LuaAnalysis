@@ -469,8 +469,9 @@ sem PFExprSuffix
                             lhs.isCall      = False
 
 sem MExpr
-    | MExpr                 lhs.number      = if @expr.isCall then @lhs.number + 2 else @lhs.number
-                            lhs.nodes       = if @expr.isCall then
+    | MExpr                 lhs.number      = @expr.number
+                            expr.number     = if @expr.isCall then @lhs.number + 2 else @lhs.number
+                            +nodes          = (++) $ if @expr.isCall then
                                                 [(@lhs.number, ExprCallEntry @loc.copy), (@lhs.number + 1, ExprCallExit @loc.copy)]
                                               else
                                                 []
