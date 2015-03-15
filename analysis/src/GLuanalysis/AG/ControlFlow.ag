@@ -240,7 +240,7 @@ sem MStat | MStat
 
 
 sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, Intra True)]
+                         loc.lastNumbers    = []
 
             | Def        lhs.number         = @vars.number
                          vars.number        = @lhs.number + 1
