@@ -273,7 +273,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          -- Interflow: (call, enter, exit, return), reversed in interflowR
                          loc.interflowF     = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
                          loc.interflowR     = map (\(a,b,c,d) -> (d,c,b,a)) @loc.interflow
-                         loc.interflow      = if @lhs.reversed then @loc.interflowR else @loc.interflow
+                         loc.interflow      = if @lhs.reversed then @loc.interflowR else @loc.interflowF
                          +edges             = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) @loc.interflow
 
             | ALabel     lhs.number         = @lhs.number + 1
@@ -477,7 +477,7 @@ sem MExpr
                             loc.possibleFuncs  = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @expr.ddispatch
                             loc.interflowF     = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
                             loc.interflowR     = map (\(a,b,c,d) -> (d,c,b,a)) @loc.interflow
-                            loc.interflow      = if @lhs.reversed then @loc.interflowR else @loc.interflow
+                            loc.interflow      = if @lhs.reversed then @loc.interflowR else @loc.interflowF
                             +edges             = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) @loc.interflow
                             lhs.exprInterReturn = if @expr.isCall then [(@lhs.number + 1, ExprInter True)] else []
                             lhs.exprInterCall   = if @expr.isCall then [@lhs.number] else []
