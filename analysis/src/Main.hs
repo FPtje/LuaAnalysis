@@ -109,7 +109,7 @@ reachA file = do
 
 		let ast = parseGLua tokens
 		putStrLn $ show $ mfp R.mFramework  (getGraph . fst $ ast)
-                
+
 signA file = do
 		contents <- readFile file
 
@@ -129,10 +129,10 @@ signA file = do
 			exitWith (ExitFailure 1)
 
 		let ast = parseGLua tokens
-                
+
 		putStrLn $ show $ mfp signFramework  (getGraph . fst $ ast)
 
-deadcodeAnalysis file = 
+deadcodeAnalysis file =
                 do
                         contents <- readFile file
 
@@ -152,7 +152,7 @@ deadcodeAnalysis file =
                                 exitWith (ExitFailure 1)
 
                         let ast = parseGLua tokens
-                        
+
                         let sign = toList $ fst $ mfp signFramework  (getGraph . fst $ ast)
                         let reach = toList $ snd $ mfp R.mFramework  (getGraph . fst $ ast)
                         let lv = toList $ snd $ mfp LV.mFramework  (getGraphR . fst $ ast)
@@ -161,7 +161,7 @@ deadcodeAnalysis file =
                         let deadcode = catMaybes $ zipEm sign reach lv2
                         let deadcode1 = map (lab (fst $ getGraph . fst $ ast)) deadcode
                         putStrLn . show $ deadcode1 -- reach --(fst $ getGraph . fst $ ast)
-                        
+
 checkLV :: [(Node,[Token])] -> [(Node,LV.KillSet)] -> Gr NodeThing EdgeLabel -> [(Node,Bool)]
 checkLV nodeset ((y,[]):xs) gr = (y,True) : checkLV nodeset xs gr
 checkLV nodeset ((y,g):xs) gr =  let adjacent = suc gr y

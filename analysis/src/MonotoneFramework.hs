@@ -13,6 +13,7 @@ data MF a = MF {
     bottom :: a,
     consistent :: a -> a -> EdgeLabel -> Bool,
     transfer :: NodeThing -> a -> a,
+    transferReturn :: NodeThing -> NodeThing -> a -> a -> a, -- binary function, give info from call entry + exit
     outfun :: Node -> a -> AnalysisGraph -> [AEdge]
 }
 
@@ -32,8 +33,8 @@ mfp mf g@(gr, extremals) = let iter = iteration mf g workingList lblData
     extremalVals = map (\i -> (i, iota mf))  extremals
     lblData = M.fromList (extremalVals ++ nonExtremals) -- initial values
 
-    workingList = concatMap (\x ->  out gr x) extremals --all edges leaving from extremal value
-    
+    workingList = concatMap (out gr) extremals --all edges leaving from extremal value
+
     -- Create closed set
     mkClosed k = transfer mf (fromJust (lab gr k))
 
@@ -45,10 +46,19 @@ iteration mf g@(gr, _) ((l, l', lbl) : xs) nl =
         iteration mf g xs nl -- Next iteration
     else iteration mf g newW newNl where
 
+    getLbl :: Node -> NodeThing
+    getLbl      = fromJust . lab gr -- get the label of a node
     fromNodeVal = nl M.! l -- A[l]
     toNodeVal   = nl M.! l' -- A[l']
-    lLabel     = fromJust $ lab gr l
-    transferred = transfer mf lLabel fromNodeVal  -- f_l(A[l])
+    lLabel      = getLbl l
+    transferred = case lbl of
+        Inter (c, _, e, r) -> if l' == r then -- Return part, or in reverse flow graph, the call part
+                -- Call the transfer function with arity 2. Give it info from the caller and from the exit
+                transferReturn mf (getLbl c) (getLbl e) (nl M.! c) (nl M.! e)
+            else
+                -- Other side of the function call
+                transfer mf lLabel fromNodeVal
+        _ -> transfer mf lLabel fromNodeVal  -- f_l(A[l])
 
     -- A[l'] := A[l'] ⨆ f_l(A[l]);
     newNl = M.insert l' (joinOp mf toNodeVal transferred) nl

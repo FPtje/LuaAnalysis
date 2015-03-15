@@ -70,9 +70,9 @@ getGraphR a = (controlflow_Syn_AST ag, map fst . lastNumbers_Syn_AST $ ag) where
     ag = wrap_AST (sem_AST a) (Inh_AST 0 [] True)
 
 -- | Get the nodes of an AST control flow graph
-getNodes a = nodes_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] False))
+getNodes a = nodes_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] True))
 -- | Get the edges of an AST control flow graph
-getEdges a = edges_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] False))
+getEdges a = edges_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] True))
 
 -- | Build edges from a list of half edges and an end point
 buildEdgesTo :: Int -> [(Int, EdgeLabel)] -> [AEdge]
@@ -89,6 +89,11 @@ findFunctions loc glob dp = if dp `M.member` glob then (glob M.! dp) ++ findlocs
     findlocs :: [FuncEnv] -> [FuncInfo]
     findlocs [] = []
     findlocs (x : xs) = if dp `M.member` x then (x M.! dp) ++ findlocs xs else findlocs xs
+
+-- | reverse an edge
+reverseEdge :: (Node, Node, EdgeLabel) -> (Node, Node, EdgeLabel)
+reverseEdge n@(a, b, (Inter x)) = n
+reverseEdge (a, b, lbl) = (b, a, lbl)
 }
 
 attr Block MStat Stat MStatList AReturn ElseIf ElseIfList Else
@@ -147,7 +152,7 @@ attr MExpr MExprList VarsList Declaration
 
 sem AST |
     AST lhs.controlflow = mkGraph @chunk.nodes @loc.edges
-        loc.edges = if @lhs.reversed then map (\(x,y,z) -> (y,x,z)) @chunk.edges else @chunk.edges
+        loc.edges = if @lhs.reversed then map reverseEdge @chunk.edges else @chunk.edges
         chunk.number = 1
         chunk.labEnvI = @chunk.labEnvS
         chunk.cont = -1
@@ -266,13 +271,10 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          lhs.nodes          = [(@lhs.number, CallEntry @loc.copy), (@lhs.number + 1, CallExit @loc.copy)]
                          loc.possibleFuncs  = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @fn.ddispatch
                          -- Interflow: (call, enter, exit, return), reversed in interflowR
-                         loc.interflow      = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
+                         loc.interflowF     = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
                          loc.interflowR     = map (\(a,b,c,d) -> (d,c,b,a)) @loc.interflow
-                         +edges             = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) $
-                                              (if @lhs.reversed then
-                                                @loc.interflowR
-                                              else
-                                                @loc.interflow)
+                         loc.interflow      = if @lhs.reversed then @loc.interflowR else @loc.interflow
+                         +edges             = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) @loc.interflow
 
             | ALabel     lhs.number         = @lhs.number + 1
                          lhs.labEnvS        = M.singleton (tokenLabel @lbl) (@lhs.number)
@@ -473,13 +475,10 @@ sem MExpr
                                               else
                                                 []
                             loc.possibleFuncs  = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @expr.ddispatch
-                            loc.interflow      = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
+                            loc.interflowF      = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
                             loc.interflowR     = map (\(a,b,c,d) -> (d,c,b,a)) @loc.interflow
-                            +edges             = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) $
-                                                 if @lhs.reversed then
-                                                   @loc.interflowR
-                                                 else
-                                                   @loc.interflow
+                            loc.interflow      = if @lhs.reversed then @loc.interflowR else @loc.interflow
+                            +edges             = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) @loc.interflow
                             lhs.exprInterReturn = if @expr.isCall then [(@lhs.number + 1, ExprInter True)] else []
                             lhs.exprInterCall   = if @expr.isCall then [@lhs.number] else []
 
