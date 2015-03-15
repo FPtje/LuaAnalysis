@@ -54,7 +54,7 @@ run file =do
 		putStrLn . show . snd . getGraph . fst $ ast
 
 		putStrLn "\nNodes\n"
-		putStrLn . show . map fst . getNodes. fst $ ast
+		putStrLn . show .  getNodes. fst $ ast
 
 		putStrLn "\nDuplicate Nodes\n"
 		putStrLn . show $ (map fst $ getNodes. fst $ ast) \\ (nub . map fst . getNodes. fst $ ast)
@@ -130,8 +130,7 @@ signA file = do
 
 		let ast = parseGLua tokens
 
-		putStrLn $ show $ mfp signFramework  (getGraph . fst $ ast)
-
+		putStrLn . show $ mfp signFramework  (getGraph . fst $ ast)
 deadcodeAnalysis file =
                 do
                         contents <- readFile file
@@ -167,7 +166,8 @@ checkLV nodeset ((y,[]):xs) gr = (y,True) : checkLV nodeset xs gr
 checkLV nodeset ((y,g):xs) gr =  let adjacent = suc gr y
                                      nodeset' = concat $ catMaybes $ map (\x -> lookup x nodeset) adjacent
                                  in (y,  or $ map (\x -> elem x nodeset') g) : checkLV nodeset xs gr
-checkLV _ _ _ = undefined
+checkLV nodeset [] gr = []
+checkLV a b c  = error ("checkLV: " ++ show a ++ show b ++ show c )
 
 zipEm :: [(Node,SignAn)] -> [(Node,Bool)] -> [(Node,Bool)] -> [Maybe Node]
 zipEm = zipWith3 (\(a,b) (c,d) (e,f) -> if a == c && a == e

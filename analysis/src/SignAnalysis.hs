@@ -30,30 +30,44 @@ data SignType = I [IntType] | B [Bool] | Bottom
 data IntType = N | Z | P
         deriving (Show,Eq,Ord)
 signFramework :: MF SignAn
-signFramework = MF {joinOp=M.unionWith signJoin,iota=M.empty,bottom=M.empty,consistent=signConsist,transfer=signAss,outfun=outF}
+signFramework = MF {joinOp=M.unionWith signJoin,joinOpReturn=M.unionWith signJoinOver,iota=M.empty,bottom=M.empty,consistent=signConsist,transfer=signAss,transferReturn= \ a (NReturn b) c d -> synchReturn b c d ,outfun=outF}
 
 signJoin :: SignType -> SignType -> SignType
 signJoin (I d) (I e) = I (L.union e d )
 signJoin (B d) (B e) = B (L.union e d)
-signJoin _ _ = error "mixing ints and bools"
+signJoin Bottom Bottom = Bottom
+signJoin a b = error ("mixing ints and bools" ++ show a ++ show b)
+
+signJoinOver :: SignType -> SignType -> SignType
+signJoinOver a b = error ("mixing ints and bools" ++ show a ++ show b)
+signJoinOver (I d) (I e) = I (d)
+signJoinOver (B d) (B e) = B (d)
+signJoinOver Bottom Bottom = Bottom
 
 signConsist :: SignAn -> SignAn -> EdgeLabel -> Bool
 signConsist a b c = keyDiff a b
 
-keyDiff :: (Ord k) => M.Map k a -> M.Map k a -> Bool
+keyDiff :: (Ord k,Show k) => M.Map k SignType -> M.Map k SignType -> Bool
 keyDiff a b = let l = M.toList a
-                  k = map (\(x,_) -> case M.lookup x b of 
-                                     (Just _) -> Nothing
+                  k = map (\(x,y) -> case M.lookup x b of 
+                                     (Just z) -> if containedIn z y then Nothing else Just x
                                      Nothing -> Just x) l
                   m = catMaybes k
               in null m
 
+containedIn Bottom Bottom = False
+containedIn (B a) (B b) = and $ map (\x -> elem x a) b
+containedIn (I a) (I b) = and $ map (\x -> elem x a) b
+
 signAss :: NodeThing -> SignAn -> SignAn
-signAss (NStat a) b = let ass = catMaybes $ getAss a b
+signAss (NStat a) b = let ass = filter (\(x,y) -> y /= Bottom) $ catMaybes $ getAss a b
                       in  inserts ass b
              where inserts ((x,y):xs) c = inserts xs (M.insert x y c)
                    inserts [] c = c
 signAss (NReturn _) b = b
+signAss (ExprCallExit _) ts = ts
+signAss (ExprCallEntry _) ts = ts
+signAss x _ = error $ show x
    
 getAss :: Stat -> SignAn -> [Maybe (Token,SignType)]
 getAss s a= case s of
@@ -63,7 +77,9 @@ getAss s a= case s of
                                   defs' = map (\(PFVar (MToken _ g) _) -> g) defs
                               in map Just $ zipWith (,) defs' vals'
                    _ -> [Nothing]
-                   
+ 
+synchReturn (AReturn _ [MExpr _ e]) a b = let val = calcAss e b 
+                                          in M.fromList $ map (\(x,c) -> (x,val)) $(M.toList a)
 outF :: Node -> SignAn -> AnalysisGraph -> [AEdge]
 outF l' a (gr,_) = 
                let nodething = fromJust $ lab gr l' :: NodeThing
@@ -74,16 +90,16 @@ outF l' a (gr,_) =
                                               _ -> Nothing
                                  _ -> Nothing
                in case isConditional of 
-                  Nothing -> outs
+                  Nothing ->outs
                   Just c -> case calcAss c a of
                             (B [True]) -> filter (\(x,y,z) -> filterEdges z True ) outs
-                            (B [False]) -> filter (\(x,y,z) -> filterEdges z True ) outs
+                            (B [False]) -> filter (\(x,y,z) -> filterEdges z False ) outs
                             (B [True,False]) ->  outs
                             _ -> [] -- outs
 
 filterEdges (Intra g ) f = g == f
-filterEdges (Inter _) f = False
-filterEdges (ExprInter g ) f = False
+filterEdges (Inter _) f = f
+filterEdges (ExprInter g ) f = f
                             
 calcAss :: Expr -> SignAn -> SignType
 calcAss e s = 

@@ -9,6 +9,7 @@ import qualified Data.Map as M
 -- Mononotone framework data type
 data MF a = MF {
     joinOp :: a -> a -> a,
+    joinOpReturn :: a -> a -> a,
     iota :: a,
     bottom :: a,
     consistent :: a -> a -> EdgeLabel -> Bool,
@@ -41,7 +42,7 @@ mfp mf g@(gr, extremals) = let iter = iteration mf g workingList lblData
 -- Performs monotone framework iterations
 iteration :: (Show a) => MF a -> AnalysisGraph -> WorkingList -> NodeLabels a -> NodeLabels a
 iteration _  _         []                  nl = nl
-iteration mf g@(gr, _) ((l, l', lbl) : xs) nl =
+iteration mf g@(gr, _) ((l, l', lbl) : xs) nl = 
    if consistent mf transferred toNodeVal lbl then
         iteration mf g xs nl -- Next iteration
     else iteration mf g newW newNl where
@@ -51,16 +52,21 @@ iteration mf g@(gr, _) ((l, l', lbl) : xs) nl =
     fromNodeVal = nl M.! l -- A[l]
     toNodeVal   = nl M.! l' -- A[l']
     lLabel      = getLbl l
-    transferred = case lbl of
-        Inter (c, _, e, r) -> if l' == r then -- Return part, or in reverse flow graph, the call part
+    isReturn = case lbl of
+        Inter (c, _, e, r) -> 
+            if l' == r then True
+            else False
+        _ -> False  -- f_l(A[l])
+    transferred = 
+            if isReturn then -- Return part, or in reverse flow graph, the call part
                 -- Call the transfer function with arity 2. Give it info from the caller and from the exit
-                transferReturn mf (getLbl c) (getLbl e) (nl M.! c) (nl M.! e)
+                case lbl of
+                        Inter (c, _, e, r) -> transferReturn mf (getLbl c) (getLbl e) (nl M.! c) (nl M.! e)
             else
                 -- Other side of the function call
                 transfer mf lLabel fromNodeVal
-        _ -> transfer mf lLabel fromNodeVal  -- f_l(A[l])
 
     -- A[l'] := A[l'] ⨆ f_l(A[l]);
-    newNl = M.insert l' (joinOp mf toNodeVal transferred) nl
+    newNl = M.insert l' ((if isReturn then joinOpReturn  else joinOp) mf toNodeVal transferred) nl --TODO: look into joinOpReturn
     -- forall l'' with (l', l'') ∈ F do W := (l', l'') : W;
-    newW =  xs ++ outfun mf l' transferred g -- out gr l'
+    newW = xs ++ outfun mf l' transferred g -- out gr l'
