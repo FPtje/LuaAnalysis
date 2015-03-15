@@ -150,368 +150,394 @@ attr MExpr MExprList VarsList Declaration
     syn exprInterCall use {++} {[]} :: {[Int]} -- Function calls in expressions
     syn exprInterReturn use {++} {[]} :: {[(Int, EdgeLabel)]} -- Make links from and to expressions that represent calls
 
-sem AST |
-    AST lhs.controlflow = mkGraph @chunk.nodes @loc.edges
-        loc.edges = if @lhs.reversed then map reverseEdge @chunk.edges else @chunk.edges
-        chunk.number = 1
-        chunk.labEnvI = @chunk.labEnvS
-        chunk.cont = -1
-
-        chunk.makeReturn = False
-        chunk.localFnEnv = [M.empty]
-        chunk.globalFnEnv = M.empty
+sem AST
+    | AST
+        lhs.controlflow         = mkGraph @chunk.nodes @loc.edges
+        loc.edges               = if @lhs.reversed then map reverseEdge @chunk.edges else @chunk.edges
+        chunk.number            = 1
+        chunk.labEnvI           = @chunk.labEnvS
+        chunk.cont              = -1
+        chunk.makeReturn        = False
+        chunk.localFnEnv        = [M.empty]
+        chunk.globalFnEnv       = M.empty
 
 sem MStatList
-    | Cons       lhs.nodes                  = @hd.nodes ++ @tl.nodes
-                 hd.number                  = @lhs.number
-                 tl.number                  = @hd.number
-                 lhs.number                 = @tl.number
-                 lhs.edges                  = @hd.edges ++ if null @tl.nodes then [] else buildEdgesTo @tl.firstNumber @hd.lastNumbers ++ @tl.edges
-                 loc.firstNumber            = @hd.firstNumber
+    | Cons
+        lhs.nodes               = @hd.nodes ++ @tl.nodes
+        hd.number               = @lhs.number
+        tl.number               = @hd.number
+        lhs.number              = @tl.number
+        lhs.edges               = @hd.edges ++ if null @tl.nodes then [] else buildEdgesTo @tl.firstNumber @hd.lastNumbers ++ @tl.edges
+        loc.firstNumber         = @hd.firstNumber
 
-                 -- Use the last number of the head when last element
-                 loc.lastNumbers            = if null @tl.lastNumbers then @hd.lastNumbers else @tl.lastNumbers
+        -- Use the last number of the head when last element
+        loc.lastNumbers         = if null @tl.lastNumbers then @hd.lastNumbers else @tl.lastNumbers
     | Nil
-                 lhs.number                 = @lhs.number
-                 lhs.nodes                  = []
-                 loc.firstNumber            = @lhs.firstNumber
-                 loc.lastNumbers            = []
+        lhs.number              = @lhs.number
+        lhs.nodes               = []
+        loc.firstNumber         = @lhs.firstNumber
+        loc.lastNumbers         = []
 
 sem Declaration
-    | Tuple      lhs.fnEnv                  = M.singleton @x1.ddispatch @x2.funs -- TODO: turn PrefixExpr into a DDispatch,
-                 lhs.number                 = @x2.number
-                 x2.number                  = @lhs.number
+    | Tuple
+        lhs.fnEnv               = M.singleton @x1.ddispatch @x2.funs -- TODO: turn PrefixExpr into a DDispatch,
+        lhs.number              = @x2.number
+        x2.number               = @lhs.number
 
 sem ElseIf
     | Tuple
-                 lhs.number                 = @x2.number
-                 lhs.firstNumber            = @lhs.number
-                 lhs.lastNumbers            = @x2.lastNumbers -- TODO: handle condition failed edges separately
-                 x2.number                  = @lhs.number + 1
-                 lhs.nodes                  = [(@lhs.number, NElseIf @loc.copy)] ++ @x1.nodes ++ @x2.nodes
-                 lhs.edges                  = (@lhs.number, @x2.firstNumber, Intra True) :
-                                              (if @lhs.failNumber == -1 then [] else [(@lhs.number, @lhs.failNumber, Intra False)]) ++ -- failed edge
-                                              @x1.edges ++ @x2.edges
-                 lhs.failNumber             = @lhs.number
-                 x2.localFnEnv              = M.empty : @lhs.localFnEnv
-                 lhs.localFnEnv             = tail @lhs.localFnEnv
-                 x2.makeReturn              = False
+        lhs.number              = @x2.number
+        lhs.firstNumber         = @lhs.number
+        lhs.lastNumbers         = @x2.lastNumbers -- TODO: handle condition failed edges separately
+        x2.number               = @lhs.number + 1
+        lhs.nodes               = [(@lhs.number, NElseIf @loc.copy)] ++ @x1.nodes ++ @x2.nodes
+        lhs.edges               = (@lhs.number, @x2.firstNumber, Intra True) :
+                                    (if @lhs.failNumber == -1 then [] else [(@lhs.number, @lhs.failNumber, Intra False)]) ++ -- failed edge
+                                    @x1.edges ++ @x2.edges
+        lhs.failNumber          = @lhs.number
+        x2.localFnEnv           = M.empty : @lhs.localFnEnv
+        lhs.localFnEnv          = tail @lhs.localFnEnv
+        x2.makeReturn           = False
 
 sem ElseIfList
     | Cons
-                 lhs.lastNumbers            = @hd.lastNumbers ++ @tl.lastNumbers
-                 lhs.failNumber             = if @tl.failNumber == -1 then @hd.failNumber else @tl.failNumber
-                 hd.failNumber              = @tl.firstNumber
-                 lhs.firstNumber            = @hd.firstNumber
+        lhs.lastNumbers         = @hd.lastNumbers ++ @tl.lastNumbers
+        lhs.failNumber          = if @tl.failNumber == -1 then @hd.failNumber else @tl.failNumber
+        hd.failNumber           = @tl.firstNumber
+        lhs.firstNumber         = @hd.firstNumber
     | Nil
-                 lhs.lastNumbers            = []
-                 lhs.firstNumber            = -1
-                 lhs.failNumber             = -1
+        lhs.lastNumbers         = []
+        lhs.firstNumber         = -1
+        lhs.failNumber          = -1
 
 sem Else
     | Just
-                 lhs.number                 = @just.number
-                 just.number                = @lhs.number
-                 lhs.firstNumber            = @lhs.number
-                 lhs.lastNumbers            = @just.lastNumbers
-                                              -- make edge between condition failed of last (else)if to else
-                 lhs.edges                  = (@lhs.failNumber, @lhs.number, Intra False) :
-                                              @just.edges
-                 just.localFnEnv            = M.empty : @lhs.localFnEnv
-                 lhs.localFnEnv             = tail @lhs.localFnEnv
-                 just.makeReturn            = False
+        lhs.number              = @just.number
+        just.number             = @lhs.number
+        lhs.firstNumber         = @lhs.number
+        lhs.lastNumbers         = @just.lastNumbers
+                                -- make edge between condition failed of last (else)if to else
+        lhs.edges               = (@lhs.failNumber, @lhs.number, Intra False) :
+                                  @just.edges
+        just.localFnEnv         = M.empty : @lhs.localFnEnv
+        lhs.localFnEnv          = tail @lhs.localFnEnv
+        just.makeReturn         = False
     | Nothing
-                 lhs.lastNumbers            = []
+        lhs.lastNumbers         = []
 
 sem AReturn
-    | AReturn    lhs.nodes                  = [(@lhs.number, NReturn @loc.copy)]
-                 lhs.number                 = @lhs.number + 1
-                 lhs.returnNumbers          = [@lhs.number]
-                 lhs.firstNumber            = @lhs.number
-    | NoReturn   lhs.nodes                  = if @lhs.makeReturn then [(@lhs.number, NReturn @loc.copy)] else []
-                 lhs.number                 = if @lhs.makeReturn then @lhs.number + 1 else @lhs.number
-                 lhs.returnNumbers          = if @lhs.makeReturn then [@lhs.number] else []
-                 lhs.firstNumber            = @lhs.number
+    | AReturn
+        lhs.nodes               = [(@lhs.number, NReturn @loc.copy)]
+        lhs.number              = @lhs.number + 1
+        lhs.returnNumbers       = [@lhs.number]
+        lhs.firstNumber         = @lhs.number
+    | NoReturn
+        lhs.nodes               = if @lhs.makeReturn then [(@lhs.number, NReturn @loc.copy)] else []
+        lhs.number              = if @lhs.makeReturn then @lhs.number + 1 else @lhs.number
+        lhs.returnNumbers       = if @lhs.makeReturn then [@lhs.number] else []
+        lhs.firstNumber         = @lhs.number
 
-sem Block | Block loc.nodes                 = @stats.nodes ++ @ret.nodes
-                  lhs.edges                 = @stats.edges ++ (if @loc.noReturn then [] else buildEdgesTo @ret.firstNumber @stats.lastNumbers)
-                  lhs.number                = @ret.number
-                  ret.number                = @stats.number
-                  lhs.firstNumber           = if null @stats.copy then @ret.firstNumber else @stats.firstNumber
-                  lhs.lastNumbers           = if @loc.noReturn then @stats.lastNumbers else [] -- don't add edges when there's a return
-                  loc.noReturn              = null @ret.returnNumbers
+sem Block
+    | Block
+        loc.nodes               = @stats.nodes ++ @ret.nodes
+        lhs.edges               = @stats.edges ++ (if @loc.noReturn then [] else buildEdgesTo @ret.firstNumber @stats.lastNumbers)
+        lhs.number              = @ret.number
+        ret.number              = @stats.number
+        lhs.firstNumber         = if null @stats.copy then @ret.firstNumber else @stats.firstNumber
+        lhs.lastNumbers         = if @loc.noReturn then @stats.lastNumbers else [] -- don't add edges when there's a return
+        loc.noReturn            = null @ret.returnNumbers
 
-sem MStat | MStat
+sem MStat
+    | MStat
 
 
-sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = []
+sem Stat
+    | ASemicolon
+        loc.firstNumber         = @lhs.number
+        loc.lastNumbers         = []
 
-            | Def        lhs.number         = @vars.number
-                         vars.number        = @lhs.number + 1
-                         loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, Intra True)]
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @vars.nodes
-                         lhs.globalFnEnv    = @lhs.globalFnEnv `M.union` @vars.fnEnv
-                         +edges             = (++) $ buildEdgesTo @lhs.number @vars.exprInterReturn ++
-                                                    map (\i -> (@lhs.number, i, ExprInter True)) @vars.exprInterCall
+    | Def
+        lhs.number              = @vars.number
+        vars.number             = @lhs.number + 1
+        loc.firstNumber         = @lhs.number
+        loc.lastNumbers         = [(@lhs.number, Intra True)]
+        lhs.nodes               = [(@lhs.number, NStat @loc.copy)] ++ @vars.nodes
+        lhs.globalFnEnv         = @lhs.globalFnEnv `M.union` @vars.fnEnv
+        +edges                  = (++) $ buildEdgesTo @lhs.number @vars.exprInterReturn ++
+                                   map (\i -> (@lhs.number, i, ExprInter True)) @vars.exprInterCall
 
-            | LocDef     lhs.number         = @vars.number
-                         vars.number        = @lhs.number + 1
-                         loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, Intra True)]
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @vars.nodes
-                         lhs.localFnEnv     = ((head @lhs.localFnEnv) `M.union` @vars.fnEnv) : tail @lhs.localFnEnv -- add to deepest scope
-                         +edges             = (++) $ buildEdgesTo @lhs.number @vars.exprInterReturn ++
-                                                    map (\i -> (@lhs.number, i, ExprInter True)) @vars.exprInterCall
+    | LocDef
+        lhs.number              = @vars.number
+        vars.number             = @lhs.number + 1
+        loc.firstNumber         = @lhs.number
+        loc.lastNumbers         = [(@lhs.number, Intra True)]
+        lhs.nodes               = [(@lhs.number, NStat @loc.copy)] ++ @vars.nodes
+        lhs.localFnEnv          = ((head @lhs.localFnEnv) `M.union` @vars.fnEnv) : tail @lhs.localFnEnv -- add to deepest scope
+        +edges                  = (++) $ buildEdgesTo @lhs.number @vars.exprInterReturn ++
+                                   map (\i -> (@lhs.number, i, ExprInter True)) @vars.exprInterCall
 
-            | AFuncCall  lhs.number         = @lhs.number + 2
-                         loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number + 1, Intra True)]
-                         lhs.nodes          = [(@lhs.number, CallEntry @loc.copy), (@lhs.number + 1, CallExit @loc.copy)]
-                         loc.possibleFuncs  = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @fn.ddispatch
-                         -- Interflow: (call, enter, exit, return), reversed in interflowR
-                         loc.interflowF     = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
-                         loc.interflowR     = map (\(a,b,c,d) -> (d,c,b,a)) @loc.interflowF
-                         loc.interflow      = if @lhs.reversed then @loc.interflowR else @loc.interflowF
-                         +edges             = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) @loc.interflow
+    | AFuncCall
+        lhs.number              = @lhs.number + 2
+        loc.firstNumber         = @lhs.number
+        loc.lastNumbers         = [(@lhs.number + 1, Intra True)]
+        lhs.nodes               = [(@lhs.number, CallEntry @loc.copy), (@lhs.number + 1, CallExit @loc.copy)]
+        loc.possibleFuncs       = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @fn.ddispatch
+        -- Interflow: (call, enter, exit, return), reversed in interflowR
+        loc.interflowF          = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
+        loc.interflowR          = map (\(a,b,c,d) -> (d,c,b,a)) @loc.interflowF
+        loc.interflow           = if @lhs.reversed then @loc.interflowR else @loc.interflowF
+        +edges                  = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) @loc.interflow
 
-            | ALabel     lhs.number         = @lhs.number + 1
-                         lhs.labEnvS        = M.singleton (tokenLabel @lbl) (@lhs.number)
-                         loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, Intra True)]
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)]
+    | ALabel
+        lhs.number              = @lhs.number + 1
+        lhs.labEnvS             = M.singleton (tokenLabel @lbl) (@lhs.number)
+        loc.firstNumber         = @lhs.number
+        loc.lastNumbers         = [(@lhs.number, Intra True)]
+        lhs.nodes               = [(@lhs.number, NStat @loc.copy)]
 
-            | ABreak     lhs.number         = @lhs.number + 1
-                         loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [] -- [(@lhs.number, True)]
-                         lhs.breaks         = [(@lhs.number, Intra True)]
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)]
+    | ABreak
+        lhs.number              = @lhs.number + 1
+        loc.firstNumber         = @lhs.number
+        loc.lastNumbers         = [] -- [(@lhs.number, True)]
+        lhs.breaks              = [(@lhs.number, Intra True)]
+        lhs.nodes               = [(@lhs.number, NStat @loc.copy)]
 
-            | AContinue  lhs.number         = @lhs.number + 1
-                         loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [] -- [(@lhs.number, True)]
-                         lhs.edges          = [(@lhs.number,@lhs.cont, Intra True)]
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)]
+    | AContinue
+        lhs.number              = @lhs.number + 1
+        loc.firstNumber         = @lhs.number
+        loc.lastNumbers         = [] -- [(@lhs.number, True)]
+        lhs.edges               = [(@lhs.number,@lhs.cont, Intra True)]
+        lhs.nodes               = [(@lhs.number, NStat @loc.copy)]
 
-            | AGoto      lhs.number         = @lhs.number + 1
-                         loc.firstNumber    = M.findWithDefault (error "couldn't find token") (tokenLabel @lbl) @lhs.labEnvI
-                         loc.lastNumbers    = []
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)]
+    | AGoto
+        lhs.number              = @lhs.number + 1
+        loc.firstNumber         = M.findWithDefault (error "couldn't find token") (tokenLabel @lbl) @lhs.labEnvI
+        loc.lastNumbers         = []
+        lhs.nodes               = [(@lhs.number, NStat @loc.copy)]
 
-            | ADo        lhs.number         = @body.number
-                         body.number        = @lhs.number
-                         loc.firstNumber    = @body.firstNumber
-                         loc.lastNumbers    = @body.lastNumbers
-                         body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = @lhs.localFnEnv
-                         lhs.nodes          = @body.nodes
-                         lhs.edges          = @body.edges
-                         body.makeReturn    = False
+    | ADo
+        lhs.number              = @body.number
+        body.number             = @lhs.number
+        loc.firstNumber         = @body.firstNumber
+        loc.lastNumbers         = @body.lastNumbers
+        body.localFnEnv         = M.empty : @lhs.localFnEnv
+        lhs.localFnEnv          = @lhs.localFnEnv
+        lhs.nodes               = @body.nodes
+        lhs.edges               = @body.edges
+        body.makeReturn         = False
 
-            | AWhile     lhs.number         = @body.number
-                         cond.number        = @lhs.number + 1
-                         body.number        = @cond.number
-                         loc.firstNumber    = @lhs.number
-                         body.cont          = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, Intra False)] ++ @body.breaks
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @cond.nodes
-                         lhs.edges          = (@loc.firstNumber, @body.firstNumber, Intra True) :
-                                              buildEdgesTo @lhs.number @body.lastNumbers ++
-                                              @body.edges ++ @cond.edges ++
-                                              -- Calls in expressions:
-                                              buildEdgesTo @lhs.number @cond.exprInterReturn ++
-                                              map (\i -> (@lhs.number, i, ExprInter True)) @cond.exprInterCall
-                         body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = @lhs.localFnEnv
-                         body.makeReturn    = False
+    | AWhile
+        lhs.number              = @body.number
+        cond.number             = @lhs.number + 1
+        body.number             = @cond.number
+        loc.firstNumber         = @lhs.number
+        body.cont               = @lhs.number
+        loc.lastNumbers         = [(@lhs.number, Intra False)] ++ @body.breaks
+        lhs.nodes               = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @cond.nodes
+        lhs.edges               = (@loc.firstNumber, @body.firstNumber, Intra True) :
+                                  buildEdgesTo @lhs.number @body.lastNumbers ++
+                                  @body.edges ++ @cond.edges ++
+                                  -- Calls in expressions:
+                                  buildEdgesTo @lhs.number @cond.exprInterReturn ++
+                                  map (\i -> (@lhs.number, i, ExprInter True)) @cond.exprInterCall
+        body.localFnEnv         = M.empty : @lhs.localFnEnv
+        lhs.localFnEnv          = @lhs.localFnEnv
+        body.makeReturn         = False
 
-            | ARepeat    lhs.number         = @cond.number
-                         body.number        = @lhs.number + 1
-                         cond.number        = @body.number
-                         loc.firstNumber    = @body.firstNumber
-                         body.cont          = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, Intra False)] ++ @body.breaks
-                         lhs.nodes          = @body.nodes ++ [(@lhs.number, NStat @loc.copy)] ++ @cond.nodes
-                         lhs.edges          = (@lhs.number, @body.firstNumber, Intra True) :
-                                              buildEdgesTo @lhs.number @body.lastNumbers ++
-                                              @body.edges ++ @cond.edges ++
-                                              -- Calls in expressions:
-                                              buildEdgesTo @lhs.number @cond.exprInterReturn ++
-                                              map (\i -> (@lhs.number, i, ExprInter True)) @cond.exprInterCall
-                         body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = @lhs.localFnEnv
-                         body.makeReturn    = False
+    | ARepeat
+        lhs.number              = @cond.number
+        body.number             = @lhs.number + 1
+        cond.number             = @body.number
+        loc.firstNumber         = @body.firstNumber
+        body.cont               = @lhs.number
+        loc.lastNumbers         = [(@lhs.number, Intra False)] ++ @body.breaks
+        lhs.nodes               = @body.nodes ++ [(@lhs.number, NStat @loc.copy)] ++ @cond.nodes
+        lhs.edges               = (@lhs.number, @body.firstNumber, Intra True) :
+                                  buildEdgesTo @lhs.number @body.lastNumbers ++
+                                  @body.edges ++ @cond.edges ++
+                                  -- Calls in expressions:
+                                  buildEdgesTo @lhs.number @cond.exprInterReturn ++
+                                  map (\i -> (@lhs.number, i, ExprInter True)) @cond.exprInterCall
+        body.localFnEnv         = M.empty : @lhs.localFnEnv
+        lhs.localFnEnv          = @lhs.localFnEnv
+        body.makeReturn         = False
 
-            | AIf        cond.number        = @lhs.number + 1
-                         body.number        = @cond.number
-                         body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = @lhs.localFnEnv
-                         elifs.number       = @body.number
-                         elifs.failNumber   = -1
-                         -- link condition failed of either last elseif or the if to the else:
-                         els.failNumber     = if @loc.elifExists then @elifs.failNumber else @lhs.number
-                         els.number         = @elifs.number
-                         lhs.number         = @els.number
-                         loc.firstNumber    = @lhs.number
-                         loc.failNumber     = if @loc.elifExists then @elifs.failNumber else @lhs.number
-                         loc.elifExists     = @elifs.firstNumber /= -1
-                         loc.elsExists      = not . null $ @els.lastNumbers
-                         lhs.lastNumbers    = -- Condition failed edges of last (else)if, if no else exists
-                                              (if not @loc.elsExists then
-                                                [(@loc.failNumber, Intra False)]
-                                               else []) ++
-                                              -- The ends of all the blocks of the body, elseifs and elses
-                                              @body.lastNumbers ++ @elifs.lastNumbers ++ @els.lastNumbers
-                         loc.nodes          = (@lhs.number, NStat @loc.copy) :
-                                              @cond.nodes ++
-                                              @body.nodes ++
-                                              @elifs.nodes ++
-                                              @els.nodes
-                         lhs.edges          = -- Condition fail edges:
-                                              -- make edge between condition failed of if to elseifs if they exist
-                                              (if @loc.elifExists then [(@lhs.number, @elifs.firstNumber, Intra False)] else []) ++
-                                              @cond.edges ++
-                                              [(@lhs.number, @body.firstNumber, Intra True)] ++
-                                              @body.edges ++ @elifs.edges ++ @els.edges ++
-                                              -- Calls in expressions:
-                                              buildEdgesTo @lhs.number @cond.exprInterReturn ++
-                                              map (\i -> (@lhs.number, i, ExprInter True)) @cond.exprInterCall
-                         body.makeReturn    = False
+    | AIf
+        cond.number             = @lhs.number + 1
+        body.number             = @cond.number
+        body.localFnEnv         = M.empty : @lhs.localFnEnv
+        lhs.localFnEnv          = @lhs.localFnEnv
+        elifs.number            = @body.number
+        elifs.failNumber        = -1
+        -- link condition failed of either last elseif or the if to the else:
+        els.failNumber          = if @loc.elifExists then @elifs.failNumber else @lhs.number
+        els.number              = @elifs.number
+        lhs.number              = @els.number
+        loc.firstNumber         = @lhs.number
+        loc.failNumber          = if @loc.elifExists then @elifs.failNumber else @lhs.number
+        loc.elifExists          = @elifs.firstNumber /= -1
+        loc.elsExists           = not . null $ @els.lastNumbers
+        lhs.lastNumbers         = -- Condition failed edges of last (else)if, if no else exists
+                                  (if not @loc.elsExists then
+                                    [(@loc.failNumber, Intra False)]
+                                   else []) ++
+                                  -- The ends of all the blocks of the body, elseifs and elses
+                                  @body.lastNumbers ++ @elifs.lastNumbers ++ @els.lastNumbers
+        loc.nodes               = (@lhs.number, NStat @loc.copy) :
+                                  @cond.nodes ++
+                                  @body.nodes ++
+                                  @elifs.nodes ++
+                                  @els.nodes
+        lhs.edges               = -- Condition fail edges:
+                                  -- make edge between condition failed of if to elseifs if they exist
+                                  (if @loc.elifExists then [(@lhs.number, @elifs.firstNumber, Intra False)] else []) ++
+                                  @cond.edges ++
+                                  [(@lhs.number, @body.firstNumber, Intra True)] ++
+                                  @body.edges ++ @elifs.edges ++ @els.edges ++
+                                  -- Calls in expressions:
+                                  buildEdgesTo @lhs.number @cond.exprInterReturn ++
+                                  map (\i -> (@lhs.number, i, ExprInter True)) @cond.exprInterCall
+        body.makeReturn         = False
 
-            | ANFor      val.number         = @lhs.number + 1
-                         to.number          = @val.number
-                         step.number        = @to.number
-                         body.number        = @step.number
-                         lhs.number         = @body.number
-                         body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = @lhs.localFnEnv
-                         loc.firstNumber    = @lhs.number
-                         body.cont          = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, Intra False)] ++ @body.breaks -- End of for loop
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @val.nodes ++ @to.nodes ++ @step.nodes
-                         lhs.edges          = (@loc.firstNumber, @body.firstNumber, Intra True) :
-                                              buildEdgesTo @lhs.number @body.lastNumbers ++
-                                              @body.edges ++ @val.edges ++ @to.edges ++ @step.edges ++
-                                              -- Calls in expressions:
-                                              buildEdgesTo @lhs.number @val.exprInterReturn ++
-                                              map (\i -> (@lhs.number, i, ExprInter True)) @val.exprInterCall ++
+    | ANFor
+        val.number              = @lhs.number + 1
+        to.number               = @val.number
+        step.number             = @to.number
+        body.number             = @step.number
+        lhs.number              = @body.number
+        body.localFnEnv         = M.empty : @lhs.localFnEnv
+        lhs.localFnEnv          = @lhs.localFnEnv
+        loc.firstNumber         = @lhs.number
+        body.cont               = @lhs.number
+        loc.lastNumbers         = [(@lhs.number, Intra False)] ++ @body.breaks -- End of for loop
+        lhs.nodes               = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @val.nodes ++ @to.nodes ++ @step.nodes
+        lhs.edges               = (@loc.firstNumber, @body.firstNumber, Intra True) :
+                                  buildEdgesTo @lhs.number @body.lastNumbers ++
+                                  @body.edges ++ @val.edges ++ @to.edges ++ @step.edges ++
+                                  -- Calls in expressions:
+                                  buildEdgesTo @lhs.number @val.exprInterReturn ++
+                                  map (\i -> (@lhs.number, i, ExprInter True)) @val.exprInterCall ++
 
-                                              buildEdgesTo @lhs.number @to.exprInterReturn ++
-                                              map (\i -> (@lhs.number, i, ExprInter True)) @to.exprInterCall ++
+                                  buildEdgesTo @lhs.number @to.exprInterReturn ++
+                                  map (\i -> (@lhs.number, i, ExprInter True)) @to.exprInterCall ++
 
-                                              buildEdgesTo @lhs.number @step.exprInterReturn ++
-                                              map (\i -> (@lhs.number, i, ExprInter True)) @step.exprInterCall
-                         body.makeReturn    = False
+                                  buildEdgesTo @lhs.number @step.exprInterReturn ++
+                                  map (\i -> (@lhs.number, i, ExprInter True)) @step.exprInterCall
+        body.makeReturn         = False
 
-            | AGFor      vals.number        = @lhs.number + 1
-                         body.number        = @vals.number
-                         lhs.number         = @body.number
-                         loc.firstNumber    = @lhs.number
-                         body.cont          = @lhs.number
-                         body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = @lhs.localFnEnv
-                         loc.lastNumbers    = [(@lhs.number, Intra False)] ++ @body.breaks  -- End of for loop
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @vals.nodes
-                         lhs.edges          = (@loc.firstNumber, @body.firstNumber, Intra True) :
-                                              buildEdgesTo @lhs.number @body.lastNumbers ++
-                                              @body.edges ++ @vals.edges ++
-                                              -- Calls in expressions:
-                                              buildEdgesTo @lhs.number @vals.exprInterReturn ++
-                                              map (\i -> (@lhs.number, i, ExprInter True)) @vals.exprInterCall
-                         body.makeReturn    = False
+    | AGFor
+        vals.number             = @lhs.number + 1
+        body.number             = @vals.number
+        lhs.number              = @body.number
+        loc.firstNumber         = @lhs.number
+        body.cont               = @lhs.number
+        body.localFnEnv         = M.empty : @lhs.localFnEnv
+        lhs.localFnEnv          = @lhs.localFnEnv
+        loc.lastNumbers         = [(@lhs.number, Intra False)] ++ @body.breaks  -- End of for loop
+        lhs.nodes               = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes ++ @vals.nodes
+        lhs.edges               = (@loc.firstNumber, @body.firstNumber, Intra True) :
+                                  buildEdgesTo @lhs.number @body.lastNumbers ++
+                                  @body.edges ++ @vals.edges ++
+                                  -- Calls in expressions:
+                                  buildEdgesTo @lhs.number @vals.exprInterReturn ++
+                                  map (\i -> (@lhs.number, i, ExprInter True)) @vals.exprInterCall
+        body.makeReturn         = False
 
-            | AFunc      lhs.number         = @body.number
-                         body.number        = @lhs.number + 1
-                         loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, Intra True)]
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
-                         body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         lhs.localFnEnv     = @lhs.localFnEnv
-                         body.makeReturn    = True
-                         loc.fun            = map (\i -> (@body.firstNumber, i)) @body.returnNumbers
-                         lhs.globalFnEnv    = M.insert @name.ddispatch @loc.fun @lhs.globalFnEnv
+    | AFunc
+        lhs.number              = @body.number
+        body.number             = @lhs.number + 1
+        loc.firstNumber         = @lhs.number
+        loc.lastNumbers         = [(@lhs.number, Intra True)]
+        lhs.nodes               = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+        body.localFnEnv         = M.empty : @lhs.localFnEnv
+        lhs.localFnEnv          = @lhs.localFnEnv
+        body.makeReturn         = True
+        loc.fun                 = map (\i -> (@body.firstNumber, i)) @body.returnNumbers
+        lhs.globalFnEnv         = M.insert @name.ddispatch @loc.fun @lhs.globalFnEnv
 
-            | ALocFunc   lhs.number         = @body.number
-                         body.number        = @lhs.number + 1
-                         loc.firstNumber    = @lhs.number
-                         loc.lastNumbers    = [(@lhs.number, Intra True)]
-                         lhs.nodes          = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
-                         body.localFnEnv    = M.empty : @lhs.localFnEnv
-                         body.makeReturn    = True
-                         loc.fun            = map (\i -> (@body.firstNumber, i)) @body.returnNumbers
-                         lhs.localFnEnv     = (M.insert @name.ddispatch @loc.fun (head @lhs.localFnEnv)) : (tail @lhs.localFnEnv)
+    | ALocFunc
+        lhs.number              = @body.number
+        body.number             = @lhs.number + 1
+        loc.firstNumber         = @lhs.number
+        loc.lastNumbers         = [(@lhs.number, Intra True)]
+        lhs.nodes               = [(@lhs.number, NStat @loc.copy)] ++ @body.nodes
+        body.localFnEnv         = M.empty : @lhs.localFnEnv
+        body.makeReturn         = True
+        loc.fun                 = map (\i -> (@body.firstNumber, i)) @body.returnNumbers
+        lhs.localFnEnv          = (M.insert @name.ddispatch @loc.fun (head @lhs.localFnEnv)) : (tail @lhs.localFnEnv)
 
 sem FuncName
-    | FuncName              lhs.ddispatch   = Var (head @names) -- TODO: suffixes?
+    | FuncName
+        lhs.ddispatch           = Var (head @names) -- TODO: suffixes?
 
 sem PrefixExp
-    | PFVar                 lhs.ddispatch   = Var @name -- TODO: suffix expressions?
-                            lhs.number      = @lhs.number
-    | ExprVar               lhs.ddispatch   = Var (MToken (LineColPos 0 0 0) Nil) -- TODO: Expression stuff
-                            expr.number     = @lhs.number + 1
-                            lhs.number      = @expr.number
+    | PFVar
+        lhs.ddispatch           = Var @name -- TODO: suffix expressions?
+        lhs.number              = @lhs.number
+    | ExprVar
+        lhs.ddispatch           = Var (MToken (LineColPos 0 0 0) Nil) -- TODO: Expression stuff
+        expr.number             = @lhs.number + 1
+        lhs.number              = @expr.number
 
 sem ExprSuffixList
-    | Cons                  lhs.isCall      = if null @tl.copy then @hd.isCall else @hd.isCall && @tl.isCall
-    | Nil                   lhs.isCall      = False
+    | Cons
+        lhs.isCall              = if null @tl.copy then @hd.isCall else @hd.isCall && @tl.isCall
+    | Nil
+        lhs.isCall              = False
 
 sem PFExprSuffix
-    | Call                  lhs.ddispatch   = undefined
-                            lhs.isCall      = True
-    | MetaCall              lhs.ddispatch   = undefined
-                            lhs.isCall      = True
-    | ExprIndex             lhs.ddispatch   = undefined
-                            lhs.isCall      = False
-                            lhs.number      = @index.number
-                            index.number    = @lhs.number + 1
-    | DotIndex              lhs.ddispatch   = undefined
-                            lhs.isCall      = False
+    | Call
+        lhs.isCall              = True
+    | MetaCall
+        lhs.isCall              = True
+    | ExprIndex
+        lhs.isCall              = False
+        lhs.number              = @index.number
+        index.number            = @lhs.number + 1
+    | DotIndex
+        lhs.isCall              = False
 
 sem MExpr
-    | MExpr                 lhs.number      = @expr.number
-                            expr.number     = if @expr.isCall then @lhs.number + 2 else @lhs.number
-                            +nodes          = (++) $ if @expr.isCall then
-                                                [(@lhs.number, ExprCallEntry @loc.copy), (@lhs.number + 1, ExprCallExit @loc.copy)]
-                                              else
-                                                []
-                            loc.possibleFuncs  = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @expr.ddispatch
-                            loc.interflowF     = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
-                            loc.interflowR     = map (\(a,b,c,d) -> (d,c,b,a)) @loc.interflowF
-                            loc.interflow      = if @lhs.reversed then @loc.interflowR else @loc.interflowF
-                            +edges             = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) @loc.interflow
-                            lhs.exprInterReturn = if @expr.isCall then [(@lhs.number + 1, ExprInter True)] else []
-                            lhs.exprInterCall   = if @expr.isCall then [@lhs.number] else []
+    | MExpr
+        lhs.number              = @expr.number
+        expr.number             = if @expr.isCall then @lhs.number + 2 else @lhs.number
+        +nodes                  = (++) $ if @expr.isCall then
+                                    [(@lhs.number, ExprCallEntry @loc.copy), (@lhs.number + 1, ExprCallExit @loc.copy)]
+                                  else
+                                    []
+        loc.possibleFuncs       = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @expr.ddispatch
+        loc.interflowF          = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
+        loc.interflowR          = map (\(a,b,c,d) -> (d,c,b,a)) @loc.interflowF
+        loc.interflow           = if @lhs.reversed then @loc.interflowR else @loc.interflowF
+        +edges                  = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) @loc.interflow
+        lhs.exprInterReturn     = if @expr.isCall then [(@lhs.number + 1, ExprInter True)] else []
+        lhs.exprInterCall       = if @expr.isCall then [@lhs.number] else []
 
 sem Expr
-    | ANil                  lhs.funs       = []
-    | AFalse                lhs.funs       = []
-    | ATrue                 lhs.funs       = []
-    | ANumber               lhs.funs       = []
-    | AString               lhs.funs       = []
-    | AVarArg               lhs.funs       = []
-    | AnonymousFunc         lhs.funs       = map (\i -> (@body.firstNumber, i)) @body.returnNumbers
-                            body.number    = @lhs.number
-                            body.cont      = 0
-                            lhs.number     = @body.number
-                            lhs.nodes      = @body.nodes
-                            lhs.edges      = @body.edges
-                            body.makeReturn= True
-    | APrefixExpr           lhs.funs       = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @pexpr.ddispatch
-    | ATableConstructor     lhs.funs       = @fields.funs
-    | BinOpExpr             lhs.funs       = @left.funs ++ @right.funs
-                            lhs.number     = @right.number
-                            left.number    = @lhs.number + 1
-                            right.number   = @left.number
-    | UnOpExpr              lhs.funs       = []
-                            right.number   = @lhs.number + 1
-                            lhs.number     = @right.number
-
-sem FieldList
-    | Cons                  lhs.funs       = @hd.funs ++ @tl.funs
-    | Nil                   lhs.funs       = []
-
-sem Field
-    | ExprField             lhs.funs       = @value.funs
-    | NamedField            lhs.funs       = @value.funs
-    | UnnamedField          lhs.funs       = @value.funs
+    | ANil
+    | AFalse
+    | ATrue
+    | ANumber
+    | AString
+    | AVarArg
+    | AnonymousFunc
+        lhs.funs                = map (\i -> (@body.firstNumber, i)) @body.returnNumbers
+        body.number             = @lhs.number
+        body.cont               = 0
+        lhs.number              = @body.number
+        lhs.nodes               = @body.nodes
+        lhs.edges               = @body.edges
+        body.makeReturn         = True
+    | APrefixExpr
+        lhs.funs                = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @pexpr.ddispatch
+    | ATableConstructor
+        lhs.funs                = @fields.funs
+    | BinOpExpr
+        lhs.funs                = @left.funs ++ @right.funs
+        lhs.number              = @right.number
+        left.number             = @lhs.number + 1
+        right.number            = @left.number
+    | UnOpExpr
+        lhs.funs                = []
+        right.number            = @lhs.number + 1
+        lhs.number              = @right.number
