@@ -25,6 +25,14 @@ module {GLuanalysis.AG.ControlFlow}{}{}
 
 -}
 
+{-
+██╗███╗   ███╗██████╗  ██████╗ ██████╗ ████████╗███████╗
+██║████╗ ████║██╔══██╗██╔═══██╗██╔══██╗╚══██╔══╝██╔════╝
+██║██╔████╔██║██████╔╝██║   ██║██████╔╝   ██║   ███████╗
+██║██║╚██╔╝██║██╔═══╝ ██║   ██║██╔══██╗   ██║   ╚════██║
+██║██║ ╚═╝ ██║██║     ╚██████╔╝██║  ██║   ██║   ███████║
+╚═╝╚═╝     ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝
+-}
 imports
 {
 import GLua.AG.AST
@@ -36,10 +44,36 @@ import Debug.Trace
 }
 include "../../GLua/AG/AST.ag"
 
+
+{-
+████████╗██╗   ██╗██████╗ ███████╗███████╗
+╚══██╔══╝╚██╗ ██╔╝██╔══██╗██╔════╝██╔════╝
+   ██║    ╚████╔╝ ██████╔╝█████╗  ███████╗
+   ██║     ╚██╔╝  ██╔═══╝ ██╔══╝  ╚════██║
+   ██║      ██║   ██║     ███████╗███████║
+   ╚═╝      ╚═╝   ╚═╝     ╚══════╝╚══════╝
+-}
 {
-
+-- | Node labels
 data NodeThing = NStat Stat | CallEntry Stat | CallExit Stat | ExprCallEntry MExpr | ExprCallExit MExpr | NReturn AReturn | NExpr MExpr | NElseIf ElseIf
+-- | Edge labels
+data EdgeLabel = Intra Bool | Inter (Node, Node, Node, Node) | ExprInter Bool deriving (Show)
+-- | Labeled node
+type ANode = LNode NodeThing
+-- | Labeled edge
+type AEdge = LEdge EdgeLabel
+-- | Graph containing both graph and extremal labels
+type AnalysisGraph = (Gr NodeThing EdgeLabel, [Node])
+-- | Environment of where lables are
+type LabelEnv = M.Map String Int
+-- | Simplified dynamic dispatch: represents the variables where functions can come from
+data DDispatch = Var MToken deriving (Eq, Ord, Show)
+-- | Function info: start and return node. Every function has one FuncInfo for every return.
+type FuncInfo = (Node, Node)
+-- | Environment that keeps track of the functions that can be stored in variables.
+type FuncEnv = M.Map DDispatch [FuncInfo]
 
+-- | Show instance for node labels
 instance Show NodeThing where
     show (NStat s) = "NStat (" ++ (PP.renderStat s) ++ ")"
     show (CallEntry s) = "CallEntry (" ++ (PP.renderStat s) ++ ")"
@@ -50,15 +84,23 @@ instance Show NodeThing where
     show (NExpr s) = "NExpr (" ++ (PP.renderMExpr s) ++ ")"
     show (NElseIf (x, y)) = "NElseIf (elseif " ++ (PP.renderMExpr x) ++ " then <block>)"
 
-data EdgeLabel = Intra Bool | Inter (Node, Node, Node, Node) | ExprInter Bool deriving (Show)
-type ANode = LNode NodeThing
-type AEdge = LEdge EdgeLabel
-type AnalysisGraph = (Gr NodeThing EdgeLabel, [Int])
-
--- | Environment of where lables are
-type LabelEnv = M.Map String Int
+}
 
 
+{-
+██╗  ██╗███████╗██╗     ██████╗ ███████╗██████╗
+██║  ██║██╔════╝██║     ██╔══██╗██╔════╝██╔══██╗
+███████║█████╗  ██║     ██████╔╝█████╗  ██████╔╝
+██╔══██║██╔══╝  ██║     ██╔═══╝ ██╔══╝  ██╔══██╗
+██║  ██║███████╗███████╗██║     ███████╗██║  ██║
+
+███████╗██╗   ██╗███╗   ██╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗███████╗
+██╔════╝██║   ██║████╗  ██║██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
+█████╗  ██║   ██║██╔██╗ ██║██║        ██║   ██║██║   ██║██╔██╗ ██║███████╗
+██╔══╝  ██║   ██║██║╚██╗██║██║        ██║   ██║██║   ██║██║╚██╗██║╚════██║
+██║     ╚██████╔╝██║ ╚████║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║███████║
+-}
+{
 -- | Get the graph and the extremal nodes of an AST
 getGraph :: AST -> AnalysisGraph
 getGraph a = (controlflow_Syn_AST ag, [firstNumber_Syn_AST ag]) where
@@ -79,10 +121,6 @@ buildEdgesTo :: Int -> [(Int, EdgeLabel)] -> [AEdge]
 buildEdgesTo end es = map f es where
     f (i, l) = (i, end, l)
 
-data DDispatch = Var MToken deriving (Eq, Ord, Show)
-type FuncInfo = (Node, Node) -- start and end labels
-type FuncEnv = M.Map DDispatch [FuncInfo] -- Where functions are
-
 -- | Find all possible function points from local and global environments
 findFunctions :: [FuncEnv] -> FuncEnv -> DDispatch -> [FuncInfo]
 findFunctions loc glob dp = if dp `M.member` glob then (glob M.! dp) ++ findlocs loc else findlocs loc where
@@ -90,12 +128,20 @@ findFunctions loc glob dp = if dp `M.member` glob then (glob M.! dp) ++ findlocs
     findlocs [] = []
     findlocs (x : xs) = if dp `M.member` x then (x M.! dp) ++ findlocs xs else findlocs xs
 
--- | reverse an edge
+-- | Reverse an edge
 reverseEdge :: (Node, Node, EdgeLabel) -> (Node, Node, EdgeLabel)
 reverseEdge n@(a, b, (Inter x)) = n
 reverseEdge (a, b, lbl) = (b, a, lbl)
 }
 
+{-
+ █████╗ ████████╗████████╗██████╗ ██╗██████╗ ██╗   ██╗████████╗███████╗███████╗
+██╔══██╗╚══██╔══╝╚══██╔══╝██╔══██╗██║██╔══██╗██║   ██║╚══██╔══╝██╔════╝██╔════╝
+███████║   ██║      ██║   ██████╔╝██║██████╔╝██║   ██║   ██║   █████╗  ███████╗
+██╔══██║   ██║      ██║   ██╔══██╗██║██╔══██╗██║   ██║   ██║   ██╔══╝  ╚════██║
+██║  ██║   ██║      ██║   ██║  ██║██║██████╔╝╚██████╔╝   ██║   ███████╗███████║
+╚═╝  ╚═╝   ╚═╝      ╚═╝   ╚═╝  ╚═╝╚═╝╚═════╝  ╚═════╝    ╚═╝   ╚══════╝╚══════╝
+-}
 attr Block MStat Stat MStatList AReturn ElseIf ElseIfList Else
     inh cont :: Int -- Continues: where to return to
 
@@ -150,6 +196,15 @@ attr MExpr MExprList VarsList Declaration
     syn exprInterCall use {++} {[]} :: {[Int]} -- Function calls in expressions
     syn exprInterReturn use {++} {[]} :: {[(Int, EdgeLabel)]} -- Make links from and to expressions that represent calls
 
+
+{-
+███████╗███████╗███╗   ███╗ █████╗ ███╗   ██╗████████╗██╗ ██████╗███████╗
+██╔════╝██╔════╝████╗ ████║██╔══██╗████╗  ██║╚══██╔══╝██║██╔════╝██╔════╝
+███████╗█████╗  ██╔████╔██║███████║██╔██╗ ██║   ██║   ██║██║     ███████╗
+╚════██║██╔══╝  ██║╚██╔╝██║██╔══██║██║╚██╗██║   ██║   ██║██║     ╚════██║
+███████║███████╗██║ ╚═╝ ██║██║  ██║██║ ╚████║   ██║   ██║╚██████╗███████║
+╚══════╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝ ╚═════╝╚══════╝
+-}
 sem AST
     | AST
         lhs.controlflow         = mkGraph @chunk.nodes @loc.edges
