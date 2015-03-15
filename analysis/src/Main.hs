@@ -153,7 +153,7 @@ deadcodeAnalysis file =
 
                         let ast = parseGLua tokens
                         
-                        let sign = toList $ snd $ mfp signFramework  (getGraph . fst $ ast)
+                        let sign = toList $ fst $ mfp signFramework  (getGraph . fst $ ast)
                         let reach = toList $ snd $ mfp R.mFramework  (getGraph . fst $ ast)
                         let lv = toList $ snd $ mfp LV.mFramework  (getGraphR . fst $ ast)
                         let lv' = map (\(x, LV.LV k g) -> (x,k)) $ LV.createKG (getGraphR . fst $ ast)
@@ -171,7 +171,7 @@ checkLV _ _ _ = undefined
 
 zipEm :: [(Node,SignAn)] -> [(Node,Bool)] -> [(Node,Bool)] -> [Maybe Node]
 zipEm = zipWith3 (\(a,b) (c,d) (e,f) -> if a == c && a == e
-                                        then if (toList b) == [] || d == False || f == False
+                                        then if (((toList b) == [] && a /= 1)|| d == False || f == False )
                                              then Just a
                                              else Nothing
                                         else error ( "Unsorted in zipEm " ++ show a ++ " " ++ show c ++ " " ++ show e ))

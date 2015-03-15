@@ -30,7 +30,7 @@ data SignType = I [IntType] | B [Bool] | Bottom
 data IntType = N | Z | P
         deriving (Show,Eq,Ord)
 signFramework :: MF SignAn
-signFramework = MF {joinOp=M.unionWith signJoin,iota=M.empty,bottom=M.empty,consistent=signConsist,transfer=signAss}
+signFramework = MF {joinOp=M.unionWith signJoin,iota=M.empty,bottom=M.empty,consistent=signConsist,transfer=signAss,outfun=outF}
 
 signJoin :: SignType -> SignType -> SignType
 signJoin (I d) (I e) = I (L.union e d )
@@ -50,7 +50,7 @@ keyDiff a b = let l = M.toList a
 
 signAss :: NodeThing -> SignAn -> SignAn
 signAss (NStat a) b = let ass = catMaybes $ getAss a b
-                      in inserts ass b
+                      in  inserts ass b
              where inserts ((x,y):xs) c = inserts xs (M.insert x y c)
                    inserts [] c = c
 signAss (NReturn _) b = b
@@ -64,8 +64,28 @@ getAss s a= case s of
                               in map Just $ zipWith (,) defs' vals'
                    _ -> [Nothing]
                    
+--outF :: Node -> NodeLabels a -> AnalysisGraph -> [LEdge EdgeLabel]
+outF l' a (gr,_) = 
+               let nodething = fromJust $ lab gr l' :: NodeThing
+                   outs = out gr l'
+                   isConditional = case nodething of 
+                                 (NStat d) -> case d of
+                                              (AIf (MExpr _ c) _ _ _) -> Just c
+                                              _ -> Nothing
+                                 _ -> Nothing
+               in case isConditional of 
+                  Nothing -> outs
+                  Just c -> case calcAss c a of
+                            (B [True]) -> filter (\(x,y,z) -> z == True) outs
+                            (B [False]) -> filter (\(x,y,z) -> z == False) outs
+                            (B [True,False]) ->  outs
+                            _ -> [] -- outs
+
+
+                            
 calcAss :: Expr -> SignAn -> SignType
-calcAss e s = case e of 
+calcAss e s = 
+              case e of 
                ANil -> Bottom
                AFalse -> B [False]
                ATrue -> B [True]
@@ -75,7 +95,7 @@ calcAss e s = case e of
                AnonymousFunc p b -> Bottom
                APrefixExpr (PFVar (MToken _ g) _) -> case M.lookup g s of
                                                           (Just a) -> a
-                                                          Nothing -> error (show g ++ show s)
+                                                          Nothing -> Bottom -- error ("Lookup of " ++ show g ++ " failed, env: " ++ show s)
                ATableConstructor fs -> Bottom
                BinOpExpr op (MExpr _ l) (MExpr _ r) -> 
                                    case op of 
@@ -198,6 +218,7 @@ calcAss e s = case e of
                                 ANot ->  let (B f) = calcAss r s
                                          in B $ map not f
                                 AHash -> Bottom
+               _ -> error "ayy"
 unSignI Z = Z
 unSignI N = P
 unSignI P = N

@@ -12,7 +12,8 @@ data MF a = MF {
     iota :: a,
     bottom :: a,
     consistent :: a -> a -> EdgeLabel -> Bool,
-    transfer :: NodeThing -> a -> a
+    transfer :: NodeThing -> a -> a,
+    outfun :: Node -> a -> AnalysisGraph -> [AEdge]
 }
 
 -- Working list
@@ -31,15 +32,16 @@ mfp mf g@(gr, extremals) = let iter = iteration mf g workingList lblData
     extremalVals = map (\i -> (i, iota mf))  extremals
     lblData = M.fromList (extremalVals ++ nonExtremals) -- initial values
 
-    workingList = labEdges gr
-
+    workingList = concatMap (\x ->  out gr x) extremals --all edges leaving from extremal value
+    
     -- Create closed set
     mkClosed k = transfer mf (fromJust (lab gr k))
 
 -- Performs monotone framework iterations
 iteration :: (Show a) => MF a -> AnalysisGraph -> WorkingList -> NodeLabels a -> NodeLabels a
 iteration _  _         []                  nl = nl
-iteration mf g@(gr, _) ((l, l', lbl) : xs) nl = if consistent mf transferred toNodeVal lbl then
+iteration mf g@(gr, _) ((l, l', lbl) : xs) nl =
+   if consistent mf transferred toNodeVal lbl then
         iteration mf g xs nl -- Next iteration
     else iteration mf g newW newNl where
 
@@ -51,4 +53,4 @@ iteration mf g@(gr, _) ((l, l', lbl) : xs) nl = if consistent mf transferred toN
     -- A[l'] := A[l'] ⨆ f_l(A[l]);
     newNl = M.insert l' (joinOp mf toNodeVal transferred) nl
     -- forall l'' with (l', l'') ∈ F do W := (l', l'') : W;
-    newW = xs ++ out gr l'
+    newW =  xs ++ outfun mf l' transferred g -- out gr l'

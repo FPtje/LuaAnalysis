@@ -16,7 +16,7 @@ data LVNode = LV KillSet GenSet
         deriving Show
 
 mFramework :: MF [Token]
-mFramework = MF {joinOp=union,iota=[],bottom=[],consistent=subset,transfer=lvEntry}
+mFramework = MF {joinOp=union,iota=[],bottom=[],consistent=subset,transfer=lvEntry,outfun=outF}
 
 --lvEntry :: [[Token]] -> [Token]
 --lvEntry (x:xs) = union x (lvEntry xs)
@@ -54,6 +54,8 @@ getSets s = case s of
             (ABreak) -> ([],[])
             _ -> error (show s)
 
+outF l' a (gr,_) = out gr l'
+            
 findUsedVars :: Expr -> [Token]
 findUsedVars e = case e of
                  (APrefixExpr pre) -> findUsedVars'' pre
