@@ -20,7 +20,7 @@ rJoin :: EmbellishedReach -> EmbellishedReach -> EmbellishedReach
 rJoin = unionWith (||)
 
 rJoinR :: EmbellishedReach -> EmbellishedReach -> EmbellishedReach
-rJoinR = undefined
+rJoinR = unionWith (||)
 
 rIota :: EmbellishedReach
 rIota = fromList [([],False)]
@@ -31,11 +31,11 @@ rBottom = fromList [([],True)]
 rConsistent :: EmbellishedReach -> EmbellishedReach -> EdgeLabel -> Bool
 rConsistent = \x y z -> and . Prelude.map snd . toList $ unionWith (\a b -> a && b) x y
 
-rTransfer :: NodeThing -> NodeThing ->  EmbellishedReach ->  EmbellishedReach ->  EmbellishedReach
-rTransfer = undefined
+rTransfer :: NodeThing -> EmbellishedReach -> EmbellishedReach
+rTransfer = undefined -- Add'em
 
 rTransferReturn :: NodeThing -> NodeThing ->  EmbellishedReach -> EmbellishedReach ->  EmbellishedReach
-rTransferReturn = undefined
+rTransferReturn = undefined -- Subtract'em
 
 rOutFun ::  Node -> EmbellishedReach -> AnalysisGraph -> [AEdge]
-rOutFun = undefined
+rOutFun = undefined -- Check 'em
