@@ -167,7 +167,6 @@ checkLV nodeset ((y,g):xs) gr =  let adjacent = suc gr y
                                      nodeset' = concat $ catMaybes $ map (\x -> lookup x nodeset) adjacent
                                  in (y,  or $ map (\x -> elem x nodeset') g) : checkLV nodeset xs gr
 checkLV nodeset [] gr = []
-checkLV a b c  = error ("checkLV: " ++ show a ++ show b ++ show c )
 
 zipEm :: [(Node,SignAn)] -> [(Node,Bool)] -> [(Node,Bool)] -> [Maybe Node]
 zipEm = zipWith3 (\(a,b) (c,d) (e,f) -> if a == c && a == e

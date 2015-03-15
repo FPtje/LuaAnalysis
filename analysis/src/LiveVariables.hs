@@ -28,7 +28,7 @@ lvEntry (NStat n) ts = let (killset,genset) = getSets n
 lvEntry (NReturn (AReturn _ s)) ts = let (killset,genset) = ([],concatMap (\(MExpr _ e) -> findUsedVars e) s)
                                      in (ts \\ killset) `union` genset
 lvEntry (ExprCallExit _) ts = ts
-lvEntry (ExprCallEntry _) ts = ts
+lvEntry (ExprCallEntry _ _) ts = ts
 lvEntry x ts = error $ show x
 
 
@@ -38,22 +38,22 @@ subset x y _ = all (`elem` y) x
 createKG :: AnalysisGraph -> [(Node,LVNode)]
 createKG g =    let nodes = labNodes . fst $ g
                     edges = labEdges . fst $ g
-                    newnodes = let n' = map (\x -> case x of  
+                    newnodes = let n' = map (\x -> case x of
                                                    Just y -> getSets y
                                                    Nothing -> ([],[]))nodes'
                                    nodes' =          map (\(l,s') -> case s' of
                                                                         (NStat s) -> Just s
-                                                                        (NReturn _) -> Nothing  
+                                                                        (NReturn _) -> Nothing
                                                                         (ExprCallExit _) -> Nothing
-                                                                        (ExprCallEntry _) -> Nothing 
+                                                                        (ExprCallEntry _ _) -> Nothing
                                                                         x -> error (show x) ) nodes --wrong, but works for now
                                    nodes2 =          map (\(l,s') -> case s' of
                                                                         (NStat _) -> Nothing
                                                                         (NReturn (AReturn _ s)) -> Just s
                                                                         (ExprCallExit _) -> Nothing
-                                                                        (ExprCallEntry _) -> Nothing 
+                                                                        (ExprCallEntry _ _) -> Nothing
                                                                         x -> error (show x) ) nodes --wrong, but works for now
-                                   n2 = map (\x -> case x of 
+                                   n2 = map (\x -> case x of
                                                    Nothing -> ([],[])
                                                    Just y -> ([], (concatMap (\(MExpr _ e) -> findUsedVars e)) y))  nodes2
                                in zipWith3 (\(k,g) (k1,g1) (l,_) -> (l , LV (union k k1) (union g g1) ) ) n' n2 nodes
@@ -74,9 +74,9 @@ getSets s = case s of
             _ -> error (show s)
 
 outF l' a (gr,_) = out gr l'
-            
+
 findUsedVars :: Expr -> [Token]
-findUsedVars e = 
+findUsedVars e =
                  case e of
                  (APrefixExpr pre) -> findUsedVars'' pre
                  (BinOpExpr _ a b) -> findUsedVars' a ++ findUsedVars' b

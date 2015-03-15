@@ -39,17 +39,17 @@ signJoin Bottom Bottom = Bottom
 signJoin a b = error ("mixing ints and bools" ++ show a ++ show b)
 
 signJoinOver :: SignType -> SignType -> SignType
-signJoinOver a b = error ("mixing ints and bools" ++ show a ++ show b)
 signJoinOver (I d) (I e) = I (d)
 signJoinOver (B d) (B e) = B (d)
 signJoinOver Bottom Bottom = Bottom
+signJoinOver a b = error ("mixing ints and bools" ++ show a ++ show b)
 
 signConsist :: SignAn -> SignAn -> EdgeLabel -> Bool
 signConsist a b c = keyDiff a b
 
 keyDiff :: (Ord k,Show k) => M.Map k SignType -> M.Map k SignType -> Bool
 keyDiff a b = let l = M.toList a
-                  k = map (\(x,y) -> case M.lookup x b of 
+                  k = map (\(x,y) -> case M.lookup x b of
                                      (Just z) -> if containedIn z y then Nothing else Just x
                                      Nothing -> Just x) l
                   m = catMaybes k
@@ -66,32 +66,32 @@ signAss (NStat a) b = let ass = filter (\(x,y) -> y /= Bottom) $ catMaybes $ get
                    inserts [] c = c
 signAss (NReturn _) b = b
 signAss (ExprCallExit _) ts = ts
-signAss (ExprCallEntry _) ts = ts
+signAss (ExprCallEntry _ _) ts = ts
 signAss x _ = error $ show x
-   
+
 getAss :: Stat -> SignAn -> [Maybe (Token,SignType)]
 getAss s a= case s of
-                   (Def v) -> let defs = map fst v 
+                   (Def v) -> let defs = map fst v
                                   vals = map snd v
                                   vals' = map (\(MExpr _ e) -> calcAss e a) vals
                                   defs' = map (\(PFVar (MToken _ g) _) -> g) defs
                               in map Just $ zipWith (,) defs' vals'
                    _ -> [Nothing]
- 
-synchReturn (AReturn _ [MExpr _ e]) a b = let val = calcAss e b 
+
+synchReturn (AReturn _ [MExpr _ e]) a b = let val = calcAss e b
                                           in M.fromList $ map (\(x,c) -> (x,val)) $(M.toList a)
 outF :: Node -> SignAn -> AnalysisGraph -> [AEdge]
-outF l' a (gr,_) = 
+outF l' a (gr,_) =
                let nodething = fromJust $ lab gr l' :: NodeThing
                    outs = out gr l'
-                   isConditional = case nodething of 
+                   isConditional = case nodething of
                                  (NStat d) -> case d of
                                               (AIf (MExpr _ c) _ _ _) -> Just c
                                               (AWhile (MExpr _ c) _) -> Just c
                                               (ARepeat _ (MExpr _ c) ) -> Just c
                                               _ -> Nothing
                                  _ -> Nothing
-               in case isConditional of 
+               in case isConditional of
                   Nothing ->outs
                   Just c -> case calcAss c a of
                             (B [True]) -> filter (\(x,y,z) -> filterEdges z True ) outs
@@ -102,10 +102,10 @@ outF l' a (gr,_) =
 filterEdges (Intra g ) f = g == f
 filterEdges (Inter _) f = f
 filterEdges (ExprInter g ) f = f
-                            
+
 calcAss :: Expr -> SignAn -> SignType
-calcAss e s = 
-              case e of 
+calcAss e s =
+              case e of
                ANil -> Bottom
                AFalse -> B [False]
                ATrue -> B [True]
@@ -118,20 +118,20 @@ calcAss e s =
                                                           Nothing -> Bottom -- error ("Lookup of " ++ show g ++ " failed, env: " ++ show s)
                ATableConstructor fs -> Bottom
                BinOpExpr op (MExpr _ l) (MExpr _ r) ->
-                                   case op of 
+                                   case op of
                                     APlus -> let first = case  (calcAss l s) of
                                                         (I f) -> f
                                                         _ -> []
                                                  second = case  (calcAss r s) of
                                                             (I f) -> f
                                                             _ -> []
-                                           in 
+                                           in
                                            if elem N first || elem N second
                                                 then if elem P first || elem P second
                                                      then I [N,Z,P]
                                                      else I [N]
                                                 else if elem Z first || elem Z second
-                                                     then if elem P first || elem P second 
+                                                     then if elem P first || elem P second
                                                           then I [P]
                                                           else I [Z]
                                                      else I [P]
@@ -142,7 +142,7 @@ calcAss e s =
                                                              then I [N,Z,P]
                                                              else I [N,Z]
                                                         else if elem Z first || elem Z second
-                                                             then if elem P first || elem P second 
+                                                             then if elem P first || elem P second
                                                                   then I [P,N,Z]
                                                                   else I [Z]
                                                              else I [P,N,Z]
@@ -158,7 +158,7 @@ calcAss e s =
                                                                else I [N]
                                                      else I [N]
                                                 else if elem Z first || elem Z second
-                                                     then if elem P first || elem P second 
+                                                     then if elem P first || elem P second
                                                           then if first == [Z] || second == [Z]
                                                           then I [Z]
                                                           else if elem Z first || elem Z second
@@ -172,19 +172,19 @@ calcAss e s =
                                              in if first == [Z] then I [Z] else
                                                 if elem N first || elem N second
                                                 then if elem Z first || elem Z second
-                                                     then if elem P first || elem P second 
+                                                     then if elem P first || elem P second
                                                           then I [P,Z,N]
                                                           else I [N]
                                                      else I [P]
                                                 else if elem Z first || elem Z second
-                                                     then if elem P first || elem P second 
+                                                     then if elem P first || elem P second
                                                           then I [Z,P]
                                                           else I [Z]
                                                      else I [P]
                                     AModulus ->
                                              let (I first) = (calcAss l s)
                                                  (I second) = (calcAss r s)
-                                             in if first == [Z] then I [Z] else I second                                             
+                                             in if first == [Z] then I [Z] else I second
                                     APower ->
                                              let (I first) = (calcAss l s)
                                                  (I second) = (calcAss r s)
@@ -209,8 +209,8 @@ calcAss e s =
                                                             (I f) -> f
                                                             _ -> []
                                            in
-                                              if first == [] || second == [] then Bottom else 
-                                              if null [x | x <- first, y <- second, x >= y] 
+                                              if first == [] || second == [] then Bottom else
+                                              if null [x | x <- first, y <- second, x >= y]
                                               then B [False]
                                               else if null [x | x <- first, y <- second, x <= y]
                                                    then B [True]
@@ -246,14 +246,16 @@ calcAss e s =
                                                 (B f) -> case second of
                                                          (B g) -> if f == [True] || g == [True] then B [True] else if not (elem True f) || not (elem True g) then B[False] else B[True,False]
                                                          _ -> Bottom
-               UnOpExpr op (MExpr _ r) -> 
-                               case op of 
+               UnOpExpr op (MExpr _ r) ->
+                               case op of
                                 UnMinus -> let (I f) = calcAss r s
                                            in I (map unSignI f)
                                 ANot ->  let (B f) = calcAss r s
                                          in B $ map not f
                                 AHash -> Bottom
                _ -> error "ayy"
+
+unSignI :: IntType -> IntType
 unSignI Z = Z
 unSignI N = P
 unSignI P = N
