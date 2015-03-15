@@ -87,6 +87,8 @@ outF l' a (gr,_) =
                    isConditional = case nodething of 
                                  (NStat d) -> case d of
                                               (AIf (MExpr _ c) _ _ _) -> Just c
+                                              (AWhile (MExpr _ c) _) -> Just c
+                                              (ARepeat _ (MExpr _ c) ) -> Just c
                                               _ -> Nothing
                                  _ -> Nothing
                in case isConditional of 
@@ -94,7 +96,7 @@ outF l' a (gr,_) =
                   Just c -> case calcAss c a of
                             (B [True]) -> filter (\(x,y,z) -> filterEdges z True ) outs
                             (B [False]) -> filter (\(x,y,z) -> filterEdges z False ) outs
-                            (B [True,False]) ->  outs
+                            (B [True,False]) -> outs
                             _ -> [] -- outs
 
 filterEdges (Intra g ) f = g == f
@@ -115,11 +117,16 @@ calcAss e s =
                                                           (Just a) -> a
                                                           Nothing -> Bottom -- error ("Lookup of " ++ show g ++ " failed, env: " ++ show s)
                ATableConstructor fs -> Bottom
-               BinOpExpr op (MExpr _ l) (MExpr _ r) -> 
+               BinOpExpr op (MExpr _ l) (MExpr _ r) ->
                                    case op of 
-                                    APlus -> let (I first) = (calcAss l s)
-                                                 (I second) = (calcAss r s)
-                                             in if elem N first || elem N second
+                                    APlus -> let first = case  (calcAss l s) of
+                                                        (I f) -> f
+                                                        _ -> []
+                                                 second = case  (calcAss r s) of
+                                                            (I f) -> f
+                                                            _ -> []
+                                           in 
+                                           if elem N first || elem N second
                                                 then if elem P first || elem P second
                                                      then I [N,Z,P]
                                                      else I [N]
@@ -195,9 +202,19 @@ calcAss e s =
                                     ALEQ -> let (I first) = (calcAss l s)
                                                 (I second) = (calcAss r s)
                                             in if (first == [N]) || (elem Z first && (not $ elem N second) && not (elem P first)) || ( elem P first && elem P second) then B [True] else B [True,False]
-                                    AGT -> let (I first) = (calcAss l s)
-                                               (I second) = (calcAss r s)
-                                           in if ( first == [P] && not (elem P second) ) || (elem Z first && second == [N]) then B [True] else B [True,False]
+                                    AGT -> let first = case  (calcAss l s) of
+                                                        (I f) -> f
+                                                        _ -> []
+                                               second = case  (calcAss r s) of
+                                                            (I f) -> f
+                                                            _ -> []
+                                           in
+                                              if first == [] || second == [] then Bottom else 
+                                              if null [x | x <- first, y <- second, x >= y] 
+                                              then B [False]
+                                              else if null [x | x <- first, y <- second, x <= y]
+                                                   then B [True]
+                                                   else B [True,False]
                                     AGEQ ->  let (I first) = (calcAss l s)
                                                  (I second) = (calcAss r s)
                                              in if (first == [P]) || (elem Z first && not (elem P second) && not( elem N first)) || ( elem N first && elem N second) then B [True] else B [True,False]

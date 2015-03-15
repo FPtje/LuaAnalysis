@@ -68,6 +68,8 @@ getSets s = case s of
                        in (declvars', concatMap findUsedVars usedvars') --deal with local vars
             (AIf (MExpr _ e) _ _ _) -> ([],findUsedVars e)
             (ABreak) -> ([],[])
+            (AWhile (MExpr _ e) _ ) -> ([],findUsedVars e)
+            (ARepeat _ (MExpr _ e)  ) -> ([],findUsedVars e)
             (AFunc _ _ _) -> ([],[])
             _ -> error (show s)
 
