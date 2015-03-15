@@ -36,7 +36,7 @@ lJoin :: EmbellishedLive -> EmbellishedLive -> EmbellishedLive
 lJoin = M.unionWith union
 
 lJoinR :: EmbellishedLive -> EmbellishedLive -> EmbellishedLive
-lJoinR = flip const
+lJoinR = const
 
 lIota :: EmbellishedLive
 lIota = M.fromList [([],[])]
@@ -53,9 +53,7 @@ lTransfer nod r = case nod of
                   _ -> M.map (lvEntry nod) r
                   
 lTransferReturn :: NodeThing -> NodeThing ->  EmbellishedLive -> EmbellishedLive ->  EmbellishedLive
-lTransferReturn _ _ _ r =  M.mapKeys (\x -> case x of 
-                                                           { (_:xs) -> xs ;
-                                                             _ -> x }) r
+lTransferReturn _ _ r f = M.unionWith union r f
                                                              
 lOutFun ::  Node -> EmbellishedLive -> AnalysisGraph -> [AEdge]
 lOutFun l' reach (gr,_) = let isReturn = case M.keys reach of 
@@ -73,6 +71,8 @@ lvEntry (NReturn (AReturn _ s)) ts = let (killset,genset) = ([],concatMap (\(MEx
                                      in (ts \\ killset) `union` genset
 lvEntry (ExprCallExit _) ts = ts
 lvEntry (ExprCallEntry _ _) ts = ts
+lvEntry (UnknownFunction s) ts = let (killset,genset) = getSets s
+                                 in (ts \\ killset) `union` genset
 lvEntry x ts = error $ show x
 
 
@@ -115,6 +115,7 @@ getSets s = case s of
             (AWhile (MExpr _ e) _ ) -> ([],findUsedVars e)
             (ARepeat _ (MExpr _ e)  ) -> ([],findUsedVars e)
             (AFunc _ args _) -> ([],[]) -- (map (\(MToken _ g) -> g) args,[])
+            (AFuncCall (PFVar _ [Call (ListArgs ms)])) -> ([],concatMap (\(MExpr _ e) -> findUsedVars e) ms)
             _ -> error (show s)
 
 outF l' a (gr,_) = out gr l'

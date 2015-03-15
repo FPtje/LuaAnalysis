@@ -32,6 +32,35 @@ data IntType = N | Z | P
 signFramework :: MF SignAn
 signFramework = MF {joinOp=M.unionWith signJoin,joinOpReturn=M.unionWith signJoinOver,iota=M.empty,bottom=M.empty,consistent=signConsist,transfer=signAss,transferReturn= \ a (NReturn b) c d -> synchReturn b c d ,outfun=outF}
 
+mEmbellishedFramework :: MF EmbellishedSign
+mEmbellishedFramework = MF {joinOp=sJoin,joinOpReturn=sJoinR,iota=sIota,bottom=sBottom,consistent=sConsistent,transfer=sTransfer,transferReturn=sTransferReturn,outfun=sOutFun}
+
+type EmbellishedSign = M.Map [Node] SignAn
+
+sJoin :: EmbellishedSign -> EmbellishedSign -> EmbellishedSign
+sJoin = M.unionWith (M.unionWith signJoin)
+
+sJoinR :: EmbellishedSign -> EmbellishedSign -> EmbellishedSign
+sJoinR = M.unionWith (M.unionWith signJoinOver)
+
+sIota :: EmbellishedSign
+sIota = M.fromList [([],M.empty)]
+
+sBottom :: EmbellishedSign
+sBottom = M.fromList [([],M.empty)]
+
+sConsistent :: EmbellishedSign -> EmbellishedSign -> EdgeLabel -> Bool
+sConsistent x y l = undefined -- M.map (\a b -> signConsist a b l) x y
+
+sTransfer :: NodeThing -> EmbellishedSign -> EmbellishedSign
+sTransfer nod r = M.map (signAss nod) r 
+                  
+sTransferReturn :: NodeThing -> NodeThing ->  EmbellishedSign -> EmbellishedSign ->  EmbellishedSign
+sTransferReturn a b c d = undefined --  M.map (M.map (synchReturn b) c) d
+                                                             
+sOutFun ::  Node -> EmbellishedSign -> AnalysisGraph -> [AEdge]
+sOutFun l' reach (gr,_) = out gr l'
+
 signJoin :: SignType -> SignType -> SignType
 signJoin (I d) (I e) = I (L.union e d )
 signJoin (B d) (B e) = B (L.union e d)
