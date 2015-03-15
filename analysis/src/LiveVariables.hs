@@ -9,18 +9,62 @@ import Data.Maybe
 import Data.List (union,(\\))
 import MonotoneFramework
 import Debug.Trace
+
+import qualified Data.Map as M
+
 type KillSet = [Token]
 type GenSet = [Token]
 
 data LVNode = LV KillSet GenSet
         deriving Show
 
+-- | Monotone Framework for Live Variable Analysis
 mFramework :: MF [Token]
-mFramework = MF {joinOp=union,joinOpReturn=union,iota=[],bottom=[],consistent=subset,transfer=lvEntry,transferReturn = \a b c d -> d,outfun=outF}
+mFramework = MF {joinOp=union,joinOpReturn= \x y -> x ,iota=[],bottom=[],consistent=subset,transfer=lvEntry,transferReturn = \a b c d -> d,outfun=outF}
 
 --lvEntry :: [[Token]] -> [Token]
 --lvEntry (x:xs) = union x (lvEntry xs)
 --lvEntry [] = []
+
+-- | Embellished Monotone Framework for Live Variable Analysis
+mEmbellishedFramework :: MF EmbellishedLive
+mEmbellishedFramework = MF {joinOp=lJoin,joinOpReturn=lJoinR,iota=lIota,bottom=lBottom,consistent=lConsistent,transfer=lTransfer,transferReturn=lTransferReturn,outfun=lOutFun}
+
+type EmbellishedLive = M.Map [Node] [Token]
+
+lJoin :: EmbellishedLive -> EmbellishedLive -> EmbellishedLive
+lJoin = M.unionWith union
+
+lJoinR :: EmbellishedLive -> EmbellishedLive -> EmbellishedLive
+lJoinR = flip const
+
+lIota :: EmbellishedLive
+lIota = M.fromList [([],[])]
+
+lBottom :: EmbellishedLive
+lBottom = M.fromList [([],[])]
+
+lConsistent :: EmbellishedLive -> EmbellishedLive -> EdgeLabel -> Bool
+lConsistent x y l = trace (show (x,y,l)) $ M.isSubmapOf y x
+
+lTransfer :: NodeThing -> EmbellishedLive -> EmbellishedLive
+lTransfer nod r = case nod of 
+                  ExprCallEntry _ n -> (M.map (lvEntry nod) $ M.mapKeys (\x -> n:x ) r) -- Add'em, just copy the value over (M.map id) ; no: pattern match on function entry, add 'em
+                  _ -> M.map (lvEntry nod) r
+                  
+lTransferReturn :: NodeThing -> NodeThing ->  EmbellishedLive -> EmbellishedLive ->  EmbellishedLive
+lTransferReturn _ _ _ r =  M.mapKeys (\x -> case x of 
+                                                           { (_:xs) -> xs ;
+                                                             _ -> x }) r
+                                                             
+lOutFun ::  Node -> EmbellishedLive -> AnalysisGraph -> [AEdge]
+lOutFun l' reach (gr,_) = let isReturn = case M.keys reach of 
+                                         ((x:xs):ys) -> filter (\x -> doReturn x (head . head $ M.keys reach)) $ out gr l'
+                                         _ -> []
+                          in if null isReturn then out gr l' else isReturn
+
+doReturn (_,_,Inter (a,_,_,_)) r = a == r
+doReturn a b = False
 
 lvEntry :: NodeThing -> [Token] -> [Token]
 lvEntry (NStat n) ts = let (killset,genset) = getSets n
@@ -70,7 +114,7 @@ getSets s = case s of
             (ABreak) -> ([],[])
             (AWhile (MExpr _ e) _ ) -> ([],findUsedVars e)
             (ARepeat _ (MExpr _ e)  ) -> ([],findUsedVars e)
-            (AFunc _ _ _) -> ([],[])
+            (AFunc _ args _) -> ([],[]) -- (map (\(MToken _ g) -> g) args,[])
             _ -> error (show s)
 
 outF l' a (gr,_) = out gr l'

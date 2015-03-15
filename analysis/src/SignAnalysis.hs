@@ -58,6 +58,7 @@ keyDiff a b = let l = M.toList a
 containedIn Bottom Bottom = False
 containedIn (B a) (B b) = and $ map (\x -> elem x a) b
 containedIn (I a) (I b) = and $ map (\x -> elem x a) b
+containedIn a b = False
 
 signAss :: NodeThing -> SignAn -> SignAn
 signAss (NStat a) b = let ass = filter (\(x,y) -> y /= Bottom) $ catMaybes $ getAss a b

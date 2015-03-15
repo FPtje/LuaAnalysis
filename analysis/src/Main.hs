@@ -87,7 +87,8 @@ liveVar file = do
 			exitWith (ExitFailure 1)
 
 		let ast = parseGLua tokens
-		putStrLn $ show $ mfp LV.mFramework  (getGraphR . fst $ ast)
+		putStrLn $ show $ mfp LV.mEmbellishedFramework  (getGraphR . fst $ ast)
+                putStrLn $ show $ mfp LV.mFramework  (getGraphR . fst $ ast)
 
 reachA file = do
 		contents <- readFile file
@@ -108,7 +109,7 @@ reachA file = do
 			exitWith (ExitFailure 1)
 
 		let ast = parseGLua tokens
-		putStrLn $ show $ mfp R.mFramework  (getGraph . fst $ ast)
+		putStrLn $ show $ mfp R.mEmbellishedFramework  (getGraph . fst $ ast)
 
 signA file = do
 		contents <- readFile file
@@ -159,7 +160,7 @@ deadcodeAnalysis file =
                         let lv2 = checkLV lv lv' (fst $ getGraph . fst $ ast)
                         let deadcode = catMaybes $ zipEm sign reach lv2
                         let deadcode1 = map (lab (fst $ getGraph . fst $ ast)) deadcode
-                        putStrLn . show $ deadcode1 -- reach --(fst $ getGraph . fst $ ast)
+                        putStrLn . show $ lv2 -- reach --(fst $ getGraph . fst $ ast)
 
 checkLV :: [(Node,[Token])] -> [(Node,LV.KillSet)] -> Gr NodeThing EdgeLabel -> [(Node,Bool)]
 checkLV nodeset ((y,[]):xs) gr = (y,True) : checkLV nodeset xs gr
