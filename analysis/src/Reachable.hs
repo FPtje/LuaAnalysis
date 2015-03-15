@@ -35,7 +35,7 @@ rTransfer :: NodeThing -> EmbellishedReach -> EmbellishedReach
 rTransfer _ r = r -- Add'em, just copy the value over (M.map id)
 
 rTransferReturn :: NodeThing -> NodeThing ->  EmbellishedReach -> EmbellishedReach ->  EmbellishedReach
-rTransferReturn = undefined -- Subtract'em
+rTransferReturn _ _ _ r = r -- ignore from before call(?)
 
 rOutFun ::  Node -> EmbellishedReach -> AnalysisGraph -> [AEdge]
 rOutFun = undefined -- Check 'em
