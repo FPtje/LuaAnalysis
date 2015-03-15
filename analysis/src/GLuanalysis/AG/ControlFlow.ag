@@ -265,6 +265,7 @@ sem Stat    | ASemicolon loc.firstNumber    = @lhs.number
                          loc.lastNumbers    = [(@lhs.number + 1, Intra True)]
                          lhs.nodes          = [(@lhs.number, CallEntry @loc.copy), (@lhs.number + 1, CallExit @loc.copy)]
                          loc.possibleFuncs  = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @fn.ddispatch
+                         -- Interflow: (call, enter, exit, return), reversed in interflowR
                          loc.interflow      = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
                          loc.interflowR     = map (\(a,b,c,d) -> (d,c,b,a)) @loc.interflow
                          +edges             = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) $
