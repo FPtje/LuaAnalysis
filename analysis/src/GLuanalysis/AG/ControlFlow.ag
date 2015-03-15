@@ -55,7 +55,16 @@ include "../../GLua/AG/AST.ag"
 -}
 {
 -- | Node labels
-data NodeThing = NStat Stat | CallEntry Stat Node | CallExit Stat | ExprCallEntry MExpr Node | ExprCallExit MExpr | NReturn AReturn | NExpr MExpr | NElseIf ElseIf
+data NodeThing = NStat Stat
+    | UnknownFunction Stat
+    | UnknownFunctionExpr MExpr
+    | CallEntry Stat Node
+    | CallExit Stat
+    | ExprCallEntry MExpr Node
+    | ExprCallExit MExpr
+    | NReturn AReturn
+    | NExpr MExpr
+    | NElseIf ElseIf
 -- | Edge labels
 data EdgeLabel = Intra Bool | Inter (Node, Node, Node, Node) | ExprInter Bool deriving (Show)
 -- | Labeled node
@@ -76,6 +85,8 @@ type FuncEnv = M.Map DDispatch [FuncInfo]
 -- | Show instance for node labels
 instance Show NodeThing where
     show (NStat s) = "NStat (" ++ (PP.renderStat s) ++ ")"
+    show (UnknownFunction s) = "UnknownFunction (" ++ (PP.renderStat s) ++ ")"
+    show (UnknownFunctionExpr s) = "UnknownFunctionExpr (" ++ (PP.renderMExpr s) ++ ")"
     show (CallEntry s n) = "CallEntry (" ++ (PP.renderStat s) ++ ")"
     show (CallExit s) = "CallExit (" ++ (PP.renderStat s) ++ ")"
     show (ExprCallEntry s n) = "ExprCallEntry (" ++ (PP.renderMExpr s) ++ ")"
@@ -354,11 +365,15 @@ sem Stat
         +edges                  = (++) $ buildEdgesTo @lhs.number @vars.exprInterReturn ++
                                    map (\i -> (@lhs.number, i, ExprInter True)) @vars.exprInterCall
 
-    | AFuncCall
-        lhs.number              = @lhs.number + 2
+    | AFuncCall -- make two nodes if there are candidates for functions, one node if the function is unknown
+        lhs.number              = if @loc.hasFunctions then @lhs.number + 2 else @lhs.number + 1
+        loc.hasFunctions        = not . null $ @loc.possibleFuncs
         loc.firstNumber         = @lhs.number
-        loc.lastNumbers         = [(@lhs.number + 1, Intra True)]
-        lhs.nodes               = [(@lhs.number, CallEntry @loc.copy @lhs.number), (@lhs.number + 1, CallExit @loc.copy)]
+        loc.lastNumbers         = [(if @loc.hasFunctions then @lhs.number + 1 else @lhs.number, Intra True)]
+        lhs.nodes               = if @loc.hasFunctions then -- make two nodes
+                                    [(@lhs.number, CallEntry @loc.copy @lhs.number), (@lhs.number + 1, CallExit @loc.copy)]
+                                  else -- make one node
+                                    [(@lhs.number, UnknownFunction @loc.copy)]
         loc.possibleFuncs       = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @fn.ddispatch
         -- Interflow: (call, enter, exit, return), reversed in interflowR
         loc.interflowF          = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
@@ -578,17 +593,28 @@ sem PFExprSuffix
 sem MExpr
     | MExpr
         lhs.number              = @expr.number
-        expr.number             = if @expr.isCall then @lhs.number + 2 else @lhs.number
+        expr.number             = if @expr.isCall then
+                                    if @loc.hasFunctions then @lhs.number + 2
+                                    else @lhs.number + 1
+                                  else @lhs.number
         +nodes                  = (++) $ if @expr.isCall then
-                                    [(@lhs.number, ExprCallEntry @loc.copy @lhs.number), (@lhs.number + 1, ExprCallExit @loc.copy)]
+                                    if @loc.hasFunctions then
+                                        [(@lhs.number, ExprCallEntry @loc.copy @lhs.number), (@lhs.number + 1, ExprCallExit @loc.copy)]
+                                    else
+                                        [(@lhs.number, UnknownFunctionExpr @loc.copy)]
                                   else
                                     []
+        loc.hasFunctions        = not . null $ @loc.possibleFuncs
         loc.possibleFuncs       = findFunctions @lhs.localFnEnv @lhs.globalFnEnv @expr.ddispatch
         loc.interflowF          = map (\(f, t) -> (@lhs.number, f, t, @lhs.number + 1)) @loc.possibleFuncs
         loc.interflowR          = map (\(a,b,c,d) -> (d,c,b,a)) @loc.interflowF
         loc.interflow           = if @lhs.reversed then @loc.interflowR else @loc.interflowF
         +edges                  = (++) $ concatMap (\e@(a,b,c,d) -> [(a,b, Inter e), (c,d, Inter e)]) @loc.interflow
-        lhs.exprInterReturn     = if @expr.isCall then [(@lhs.number + 1, ExprInter False)] else []
+        lhs.exprInterReturn     = if @expr.isCall then
+                                    if @loc.hasFunctions then
+                                        [(@lhs.number + 1, ExprInter False)]
+                                    else [(@lhs.number, ExprInter False)]
+                                  else []
         lhs.exprInterCall       = if @expr.isCall then [@lhs.number] else []
 
 sem Expr
