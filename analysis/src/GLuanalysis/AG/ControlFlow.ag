@@ -55,22 +55,23 @@ type ANode = LNode NodeThing
 type AEdge = LEdge EdgeLabel
 type AnalysisGraph = (Gr NodeThing EdgeLabel, [Int])
 
--- Environment of where which lables have
+-- | Environment of where lables are
 type LabelEnv = M.Map String Int
 
 
-nextUnique :: Int -> (Int, Int)
-nextUnique u = (u+1, u)
-
+-- | Get the graph and the extremal nodes of an AST
 getGraph :: AST -> AnalysisGraph
 getGraph a = (controlflow_Syn_AST ag, [firstNumber_Syn_AST ag]) where
     ag = wrap_AST (sem_AST a) (Inh_AST 0 [] False)
 
+-- | Get the reversed graph and the extremal nodes of an AST
 getGraphR :: AST -> AnalysisGraph
 getGraphR a = (controlflow_Syn_AST ag, map fst . lastNumbers_Syn_AST $ ag) where
     ag = wrap_AST (sem_AST a) (Inh_AST 0 [] True)
 
+-- | Get the nodes of an AST control flow graph
 getNodes a = nodes_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] False))
+-- | Get the edges of an AST control flow graph
 getEdges a = edges_Syn_AST (wrap_AST (sem_AST a) (Inh_AST 0 [] False))
 
 -- | Build edges from a list of half edges and an end point
@@ -80,9 +81,9 @@ buildEdgesTo end es = map f es where
 
 data DDispatch = Var MToken deriving (Eq, Ord, Show)
 type FuncInfo = (Node, Node) -- start and end labels
-type FuncEnv = M.Map DDispatch [FuncInfo]
+type FuncEnv = M.Map DDispatch [FuncInfo] -- Where functions are
 
--- find all possible function points from local and global environments
+-- | Find all possible function points from local and global environments
 findFunctions :: [FuncEnv] -> FuncEnv -> DDispatch -> [FuncInfo]
 findFunctions loc glob dp = if dp `M.member` glob then (glob M.! dp) ++ findlocs loc else findlocs loc where
     findlocs :: [FuncEnv] -> [FuncInfo]
@@ -138,11 +139,11 @@ attr Block AReturn
     inh makeReturn :: Bool -- whether a return should be made if not present. Used for function definitions
 
 attr ExprSuffixList PFExprSuffix PrefixExp Expr
-    syn isCall use {&&} {False} :: Bool
+    syn isCall use {&&} {False} :: Bool -- Whether an expression represents a call
 
 attr MExpr MExprList VarsList Declaration
-    syn exprInterCall use {++} {[]} :: {[Int]}
-    syn exprInterReturn use {++} {[]} :: {[(Int, EdgeLabel)]}
+    syn exprInterCall use {++} {[]} :: {[Int]} -- Function calls in expressions
+    syn exprInterReturn use {++} {[]} :: {[(Int, EdgeLabel)]} -- Make links from and to expressions that represent calls
 
 sem AST |
     AST lhs.controlflow = mkGraph @chunk.nodes @loc.edges
