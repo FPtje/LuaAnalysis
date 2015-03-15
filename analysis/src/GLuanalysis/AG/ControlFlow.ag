@@ -142,20 +142,24 @@ reverseEdge (a, b, lbl) = (b, a, lbl)
 ██║  ██║   ██║      ██║   ██║  ██║██║██████╔╝╚██████╔╝   ██║   ███████╗███████║
 ╚═╝  ╚═╝   ╚═╝      ╚═╝   ╚═╝  ╚═╝╚═╝╚═════╝  ╚═════╝    ╚═╝   ╚══════╝╚══════╝
 -}
-attr AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else AReturn
-    syn copy :: self
 
-attr Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else AReturn
+set StatementStuff  = Block MStatList MStat Stat AReturn
+set IfStuff         = ElseIf ElseIfList Else
+set ExprStuff       = PrefixExp PFExprSuffix MExpr Expr MExprList ExprSuffixList
+set VarStuff        = Args Field FieldList Declaration VarsList
+
+attr StatementStuff IfStuff ExprStuff VarStuff FuncName BinOp UnOp
+    syn copy :: self
     chn localFnEnv :: {[FuncEnv]} -- Dynamic dispatch: figure out where functions are defined
     chn globalFnEnv :: {FuncEnv}
     syn returnNumbers use {++} {[]} :: {[Node]} -- Where the return statements are
 
-attr MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else Block MStat Stat AReturn PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp
+attr StatementStuff IfStuff ExprStuff VarStuff BinOp UnOp
     -- Label environments are linked in AST level to force it to be fully generated
     syn labEnvS use {M.union} {M.empty} :: {LabelEnv}
     inh labEnvI :: {LabelEnv}
 
-attr AST Block MStat Stat MStatList ElseIf ElseIfList Else AReturn MExpr Expr MExprList Declaration PrefixExp PFExprSuffix ExprSuffixList Args Field FieldList VarsList
+attr AST StatementStuff IfStuff ExprStuff VarStuff
     syn nodes use {++} {[]} :: {[ANode]} -- The nodes of the graph
     syn edges use {++} {[]} :: {[AEdge]} -- The edges of the graph
     syn breaks use {++} {[]} ::  {[(Int, EdgeLabel)]} -- Where the breaks go to
@@ -165,10 +169,10 @@ attr AST Block MStat Stat MStatList ElseIf ElseIfList Else AReturn MExpr Expr ME
     chn firstNumber :: Int -- Deciding flow: the first node of a statement/block/...
     chn lastNumbers :: {[(Int, EdgeLabel)]} -- Deciding flow: the last node(s) of a statement/block/...
 
-attr Block MStat Stat MStatList AReturn ElseIf ElseIfList Else MExpr Expr MExprList Declaration PrefixExp PFExprSuffix ExprSuffixList Args Field FieldList VarsList
+attr StatementStuff IfStuff ExprStuff VarStuff
     chn number :: Int -- Label number
 
-attr Block MStat Stat MStatList AReturn ElseIf ElseIfList Else
+attr StatementStuff IfStuff
     inh cont :: Int -- Continues: where to return to
 
 attr MExpr Expr FieldList Field
@@ -184,9 +188,6 @@ attr MExpr MExprList VarsList Declaration
     syn exprInterCall use {++} {[]} :: {[Int]} -- Function calls in expressions
     syn exprInterReturn use {++} {[]} :: {[(Int, EdgeLabel)]} -- Make links from and to expressions that represent calls
 
-attr ElseIf ElseIfList Else
-    chn failNumber :: Int -- Where the last (else)if is
-
 attr Declaration VarsList
     syn fnEnv use {M.union} {M.empty} :: {FuncEnv} -- don't know whether local or global
 
@@ -195,6 +196,9 @@ attr AST
 
 attr Block AReturn
     inh makeReturn :: Bool -- whether a return should be made if not present. Used for function definitions
+
+attr IfStuff
+    chn failNumber :: Int -- Where the last (else)if is
 
 {-
 ███████╗███████╗███╗   ███╗ █████╗ ███╗   ██╗████████╗██╗ ██████╗███████╗
