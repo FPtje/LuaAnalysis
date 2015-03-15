@@ -64,7 +64,7 @@ getAss s a= case s of
                               in map Just $ zipWith (,) defs' vals'
                    _ -> [Nothing]
                    
---outF :: Node -> NodeLabels a -> AnalysisGraph -> [LEdge EdgeLabel]
+outF :: Node -> SignAn -> AnalysisGraph -> [AEdge]
 outF l' a (gr,_) = 
                let nodething = fromJust $ lab gr l' :: NodeThing
                    outs = out gr l'
@@ -76,12 +76,14 @@ outF l' a (gr,_) =
                in case isConditional of 
                   Nothing -> outs
                   Just c -> case calcAss c a of
-                            (B [True]) -> filter (\(x,y,z) -> z == True) outs
-                            (B [False]) -> filter (\(x,y,z) -> z == False) outs
+                            (B [True]) -> filter (\(x,y,z) -> filterEdges z True ) outs
+                            (B [False]) -> filter (\(x,y,z) -> filterEdges z True ) outs
                             (B [True,False]) ->  outs
                             _ -> [] -- outs
 
-
+filterEdges (Intra g ) f = g == f
+filterEdges (Inter _) f = False
+filterEdges (ExprInter g ) f = False
                             
 calcAss :: Expr -> SignAn -> SignType
 calcAss e s = 
