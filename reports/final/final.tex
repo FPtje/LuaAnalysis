@@ -84,16 +84,11 @@ We can not handle the following lua constructs: local declarations and functions
 
 We can handle the following lua constructs: Definitions, Function calls, Labels and Goto's, Breaks, Continues, Do-blocks, While, Repeat and If.
 
-\section{Nog wat andere zooi welke nog een kopje moeten krijgen}
-% - wat zijn de beperkingen
-% - wat is de lattice
-% - hoe is join defineerd
-% - gebruik van widening?
-% - wat is de operator?
 
 \section{Example}
 In this section we will explain a running example. The code used for the example is the following, and its associated control flow graph can be seen in figure \ref{fig:cfg}.\\
 
+\newpage
 \begin{lstlisting}[frame=single,numbers=left,caption=Simple example] % lstlisting kent geen Lua, dus maar geen syntax highlighting
 x = 1
 b = function(f)
