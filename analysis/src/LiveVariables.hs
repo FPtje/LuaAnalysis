@@ -90,7 +90,6 @@ subset x y _ = all (`elem` y) x
 
 createKG :: AnalysisGraph -> [(Node,LVNode)]
 createKG g =    let nodes = labNodes . fst $ g
-                    edges = labEdges . fst $ g
                     newnodes = let n' = map (\x -> case x of
                                                    Just y -> getSets y
                                                    Nothing -> ([],[]))nodes'
@@ -116,3 +115,14 @@ getSets :: Stat -> (KillSet,GenSet)
 getSets = kgStat
 
 outF l' a (gr,_) = out gr l'
+findUsedVars :: Expr -> [Token]
+findUsedVars e =
+                 case e of
+                 (APrefixExpr pre) -> findUsedVars'' pre
+                 (BinOpExpr _ a b) -> findUsedVars' a ++ findUsedVars' b
+                 (UnOpExpr _ a) -> findUsedVars' a
+                 _ -> []
+        where  findUsedVars' (MExpr _ e1) = findUsedVars e1
+               findUsedVars'' (PFVar (MToken _ g) [Call _]) = []
+               findUsedVars'' (PFVar (MToken _ g) _) = [g]
+               findUsedVars'' (ExprVar e _) = findUsedVars' e
