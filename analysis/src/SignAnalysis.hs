@@ -98,6 +98,7 @@ signAss (NReturn _) b = b
 signAss (ExprCallExit _) ts = ts
 signAss (ExprCallEntry _ _) ts = ts
 signAss (UnknownFunction s) ts =ts
+signAss (UnknownFunctionExpr s) ts =ts
 signAss x _ = error $ show x
 
 getAss :: MStat -> SignAn -> [Maybe (Token,SignType)]

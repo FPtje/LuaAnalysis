@@ -76,12 +76,13 @@ doReturn a b = False
 lvEntry :: NodeThing -> [Token] -> [Token]
 lvEntry (NStat n) ts = let (killset,genset) = getSets n
                        in (ts \\ killset) `union` genset
-lvEntry (NReturn (AReturn _ s)) ts = let (killset,genset) = ([],concatMap (\(MExpr _ e) -> findUsedVars e) s)
+lvEntry (NReturn (AReturn _ s)) ts = let (killset,genset) = ([],concatMap varsMExpr s)
                                      in (ts \\ killset) `union` genset
 lvEntry (ExprCallExit _) ts = ts
 lvEntry (ExprCallEntry _ _) ts = ts
 lvEntry (UnknownFunction s) ts = let (killset,genset) = getSets s
                                  in (ts \\ killset) `union` genset
+lvEntry (UnknownFunctionExpr s) ts = ts `union` varsMExpr s
 lvEntry x ts = error $ show x
 
 
@@ -112,14 +113,4 @@ sets (NElseIf elseif)             = kgElseIf elseif
 
 
 outF l' a (gr,_) = out gr l'
-findUsedVars :: Expr -> [Token]
-findUsedVars e =
-                 case e of
-                 (APrefixExpr pre) -> findUsedVars'' pre
-                 (BinOpExpr _ a b) -> findUsedVars' a ++ findUsedVars' b
-                 (UnOpExpr _ a) -> findUsedVars' a
-                 _ -> []
-        where  findUsedVars' (MExpr _ e1) = findUsedVars e1
-               findUsedVars'' (PFVar (MToken _ g) [Call _]) = []
-               findUsedVars'' (PFVar (MToken _ g) _) = [g]
-               findUsedVars'' (ExprVar e _) = findUsedVars' e
+
