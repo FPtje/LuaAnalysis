@@ -2,6 +2,8 @@ module Graphviz where
 
 import Data.Graph.Inductive.Graph
 
+{- Taken from fgl-5.4.2.4 -}
+
 data Orient = Portrait | Landscape deriving (Eq, Show)
 
 o2s :: Orient -> String

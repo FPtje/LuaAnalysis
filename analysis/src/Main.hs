@@ -46,116 +46,116 @@ main = do
 
 run :: FilePath -> IO ()
 run file = do
-		contents <- readFile file
+        contents <- readFile file
 
-		-- Lex the file
-		let lex = execParseTokens contents
-		let tokens = fst lex
-		let errors = snd lex
+        -- Lex the file
+        let lex = execParseTokens contents
+        let tokens = fst lex
+        let errors = snd lex
 
-		unless (null errors) $ do
-			mapM_ print errors
-			-- Attempt to fix errors when asked
-			when True $ do
-				writeFile file . concatMap show $ tokens
-				putStrLn "Success"
-				exitSuccess
+        unless (null errors) $ do
+            mapM_ print errors
+            -- Attempt to fix errors when asked
+            when True $ do
+                writeFile file . concatMap show $ tokens
+                putStrLn "Success"
+                exitSuccess
 
-			exitWith (ExitFailure 1)
+            exitWith (ExitFailure 1)
 
-		let ast = parseGLua tokens
+        let ast = parseGLua tokens
 
-		putStrLn "\nGraph:\n"
-		putStrLn . prettify . fst . getGraph . fst $ ast
+        putStrLn "\nGraph:\n"
+        putStrLn . prettify . fst . getGraph . fst $ ast
 
-		putStrLn "\nExtremal nodes:\n"
-		print . snd . getGraph . fst $ ast
+        putStrLn "\nExtremal nodes:\n"
+        print . snd . getGraph . fst $ ast
 
-		putStrLn "\nNodes\n"
-		print .  getNodes. fst $ ast
+        putStrLn "\nNodes\n"
+        print .  getNodes. fst $ ast
 
-		putStrLn "\nDuplicate Nodes\n"
-		print $ (map fst . getNodes. fst $ ast) \\ (nub . map fst . getNodes. fst $ ast)
+        putStrLn "\nDuplicate Nodes\n"
+        print $ (map fst . getNodes. fst $ ast) \\ (nub . map fst . getNodes. fst $ ast)
 
-		putStrLn "\nEdges\n"
-		print . getEdges . fst $ ast
+        putStrLn "\nEdges\n"
+        print . getEdges . fst $ ast
 
-		putStrLn "\nErrors:\n"
-		print . snd $ ast
+        putStrLn "\nErrors:\n"
+        print . snd $ ast
 
-		putStrLn "Pretty printed code:"
-		putStrLn . prettyprint . fst $ ast
+        putStrLn "Pretty printed code:"
+        putStrLn . prettyprint . fst $ ast
 
 liveVar :: FilePath -> IO ()
 liveVar file = do
-		contents <- readFile file
+        contents <- readFile file
 
-		-- Lex the file
-		let lex = execParseTokens contents
-		let tokens = fst lex
-		let errors = snd lex
+        -- Lex the file
+        let lex = execParseTokens contents
+        let tokens = fst lex
+        let errors = snd lex
 
-		unless (null errors) $ do
-			mapM_ print errors
-			-- Attempt to fix errors when asked
-			when True $ do
-				writeFile file . concatMap show $ tokens
-				putStrLn "Success"
-				exitSuccess
+        unless (null errors) $ do
+            mapM_ print errors
+            -- Attempt to fix errors when asked
+            when True $ do
+                writeFile file . concatMap show $ tokens
+                putStrLn "Success"
+                exitSuccess
 
-			exitWith (ExitFailure 1)
+            exitWith (ExitFailure 1)
 
-		let ast = parseGLua tokens
-		print $ mfp LV.mEmbellishedFramework  (getGraphR . fst $ ast)
-                print $ mfp LV.mFramework  (getGraphR . fst $ ast)
+        let ast = parseGLua tokens
+        return ()
+
 
 reachA :: FilePath -> IO ()
 reachA file = do
-		contents <- readFile file
+        contents <- readFile file
 
-		-- Lex the file
-		let lex = execParseTokens contents
-		let tokens = fst lex
-		let errors = snd lex
+        -- Lex the file
+        let lex = execParseTokens contents
+        let tokens = fst lex
+        let errors = snd lex
 
-		unless (null errors) $ do
-			mapM_ print errors
-			-- Attempt to fix errors when asked
-			when True $ do
-				writeFile file . concatMap show $ tokens
-				putStrLn "Success"
-				exitSuccess
+        unless (null errors) $ do
+            mapM_ print errors
+            -- Attempt to fix errors when asked
+            when True $ do
+                writeFile file . concatMap show $ tokens
+                putStrLn "Success"
+                exitSuccess
 
-			exitWith (ExitFailure 1)
+            exitWith (ExitFailure 1)
 
-		let ast = parseGLua tokens
-		print $ mfp R.mFramework  (getGraph . fst $ ast)
+        let ast = parseGLua tokens
+        print $ mfp R.mFramework  (getGraph . fst $ ast)
 
 signA :: FilePath -> IO ()
 signA file = do
-		contents <- readFile file
+        contents <- readFile file
 
-		-- Lex the file
-		let lex = execParseTokens contents
-		let tokens = fst lex
-		let errors = snd lex
+        -- Lex the file
+        let lex = execParseTokens contents
+        let tokens = fst lex
+        let errors = snd lex
 
-		unless (null errors) $ do
-			mapM_ print errors
-			-- Attempt to fix errors when asked
-			when True $ do
-				writeFile file . concatMap show $ tokens
-				putStrLn "Success"
-				exitSuccess
+        unless (null errors) $ do
+            mapM_ print errors
+            -- Attempt to fix errors when asked
+            when True $ do
+                writeFile file . concatMap show $ tokens
+                putStrLn "Success"
+                exitSuccess
 
-			exitWith (ExitFailure 1)
+            exitWith (ExitFailure 1)
 
-		let ast = parseGLua tokens
+        let ast = parseGLua tokens
 
-		print $ mfp signFramework  (getGraph . fst $ ast)
-                print $ mfp mEmbellishedFramework  (getGraph . fst $ ast)
+        print $ mfp signFramework  (getGraph . fst $ ast)
+        -- print $ mfp mEmbellishedFramework  (getGraph . fst $ ast)
 
-deadcodeAnalysis :: FilePath -> IO ()
+
 deadcodeAnalysis file =
                 do
                         contents <- readFile file
@@ -184,6 +184,7 @@ deadcodeAnalysis file =
                         let lv2 = checkLV lv lv' (fst $ getGraph . fst $ ast)
                         let deadcode = catMaybes $ zipEm sign reach lv2
                         let deadcode1 = map (lab (fst $ getGraph . fst $ ast)) deadcode
+
                         print lv2 -- reach --(fst $ getGraph . fst $ ast)
 
 checkLV :: [(Node,[Token])] -> [(Node,LV.KillSet)] -> Gr NodeThing EdgeLabel -> [(Node,Bool)]
@@ -201,23 +202,23 @@ zipEm = zipWith3 (\(a,b) (c,d) (e,f) -> if a == c && a == e
                                         else error ( "Unsorted in zipEm " ++ show a ++ " " ++ show c ++ " " ++ show e ))
 
 viewGr file = do
-		contents <- readFile file
+        contents <- readFile file
 
-		-- Lex the file
-		let lex = execParseTokens contents
-		let tokens = fst lex
-		let errors = snd lex
+        -- Lex the file
+        let lex = execParseTokens contents
+        let tokens = fst lex
+        let errors = snd lex
 
-		unless (null errors) $ do
-			mapM_ print errors
-			-- Attempt to fix errors when asked
-			when True $ do
-				writeFile file . concatMap show $ tokens
-				putStrLn "Success"
-				exitSuccess
+        unless (null errors) $ do
+            mapM_ print errors
+            -- Attempt to fix errors when asked
+            when True $ do
+                writeFile file . concatMap show $ tokens
+                putStrLn "Success"
+                exitSuccess
 
-			exitWith (ExitFailure 1)
+            exitWith (ExitFailure 1)
 
-		let ast = parseGLua tokens
+        let ast = parseGLua tokens
 
-		putStrLn . graphviz' . fst . getGraph . fst $ ast
+        putStrLn . graphviz' . fst . getGraph . fst $ ast
