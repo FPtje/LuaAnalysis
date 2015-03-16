@@ -84,16 +84,16 @@ type FuncEnv = M.Map DDispatch [FuncInfo]
 
 -- | Show instance for node labels
 instance Show NodeThing where
-    show (NStat s) = "NStat (" ++ (PP.renderMStat s) ++ ")"
-    show (UnknownFunction s) = "UnknownFunction (" ++ (PP.renderMStat s) ++ ")"
-    show (UnknownFunctionExpr s) = "UnknownFunctionExpr (" ++ (PP.renderMExpr s) ++ ")"
-    show (CallEntry s n) = "CallEntry (" ++ (PP.renderMStat s) ++ ")"
-    show (CallExit s) = "CallExit (" ++ (PP.renderMStat s) ++ ")"
-    show (ExprCallEntry s n) = "ExprCallEntry (" ++ (PP.renderMExpr s) ++ ")"
-    show (ExprCallExit s) = "ExprCallExit (" ++ (PP.renderMExpr s) ++ ")"
-    show (NReturn s) = "NReturn (" ++ (PP.renderAReturn s) ++ ")"
-    show (NExpr s) = "NExpr (" ++ (PP.renderMExpr s) ++ ")"
-    show (NElseIf (x, y)) = "NElseIf (elseif " ++ (PP.renderMExpr x) ++ " then <block>)"
+    show (NStat s)                = "Statement ("            ++ (PP.renderMStat s)                     ++ ") at " ++ PP.getMStatPos s
+    show (UnknownFunction s)      = "Non-defined function (" ++ (PP.renderMStat s)                     ++ ") at " ++ PP.getMStatPos s
+    show (UnknownFunctionExpr s)  = "Non-defined function (" ++ (PP.renderMExpr s)                     ++ ") at " ++ PP.getMExprPos s
+    show (CallEntry s n)          = "CallEntry ("            ++ (PP.renderMStat s)                     ++ ") at " ++ PP.getMStatPos s
+    show (CallExit s)             = "CallExit ("             ++ (PP.renderMStat s)                     ++ ") at " ++ PP.getMStatPos s
+    show (ExprCallEntry s n)      = "ExprCallEntry ("        ++ (PP.renderMExpr s)                     ++ ") at " ++ PP.getMExprPos s
+    show (ExprCallExit s)         = "ExprCallExit ("         ++ (PP.renderMExpr s)                     ++ ") at " ++ PP.getMExprPos s
+    show (NReturn s)              = "Return statement ("     ++ (PP.renderAReturn s)                   ++ ") at " ++ PP.getAReturnPos s
+    show (NExpr s)                = "Expression ("           ++ (PP.renderMExpr s)                     ++ ") at " ++ PP.getMExprPos s
+    show (NElseIf (x, y))         = "Elseif (elseif "        ++ (PP.renderMExpr x) ++ " then <block>) at "        ++ PP.getMExprPos x
 
 }
 
