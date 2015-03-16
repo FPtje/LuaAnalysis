@@ -41,8 +41,7 @@ main = do
     let deadcode = catMaybes $ zipEm sign reach lv2
     let deadcode1 = mapMaybe (lab grF) deadcode
 
-    mapM print deadcode1
-    return ()
+    mapM_ print deadcode1
 
 run :: FilePath -> IO ()
 run file = do
