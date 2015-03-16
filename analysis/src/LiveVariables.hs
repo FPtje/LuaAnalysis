@@ -89,30 +89,45 @@ subset :: Eq a => [a] -> [a] -> EdgeLabel -> Bool
 subset x y _ = all (`elem` y) x
 
 createKG :: AnalysisGraph -> [(Node,LVNode)]
-createKG g =    let nodes = labNodes . fst $ g
-                    newnodes = let n' = map (\x -> case x of
-                                                   Just y -> getSets y
-                                                   Nothing -> ([],[]))nodes'
-                                   nodes' =          map (\(l,s') -> case s' of
-                                                                        (NStat s) -> Just s
-                                                                        (NReturn _) -> Nothing
-                                                                        (ExprCallExit _) -> Nothing
-                                                                        (ExprCallEntry _ _) -> Nothing
-                                                                        x -> error (show x) ) nodes --wrong, but works for now
-                                   nodes2 =          map (\(l,s') -> case s' of
-                                                                        (NStat _) -> Nothing
-                                                                        (NReturn (AReturn _ s)) -> Just s
-                                                                        (ExprCallExit _) -> Nothing
-                                                                        (ExprCallEntry _ _) -> Nothing
-                                                                        x -> error (show x) ) nodes --wrong, but works for now
-                                   n2 = map (\x -> case x of
-                                                   Nothing -> ([],[])
-                                                   Just y -> ([], (concatMap (\(MExpr _ e) -> findUsedVars e)) y))  nodes2
-                               in zipWith3 (\(k,g) (k1,g1) (l,_) -> (l , LV (union k k1) (union g g1) ) ) n' n2 nodes
-                in newnodes
+createKG g = newnodes where
+    nodes = labNodes . fst $ g
+    kgsets = map sets nodes
+    newnodes = zipWith (\(k,g) (l,_) -> (l , LV k g)) kgsets nodes
+    {-let n' = map (\x -> case x of
+                                   Just y -> getSets y
+                                   Nothing -> ([],[])) nodes'
+                   nodes' =          map (\(l,s') -> case s' of
+                                                        (NStat s) -> Just s
+                                                        (NReturn _) -> Nothing
+                                                        (ExprCallExit _) -> Nothing
+                                                        (ExprCallEntry _ _) -> Nothing
+                                                        x -> error (show x) ) nodes --wrong, but works for now
+                   nodes2 =          map (\(l,s') -> case s' of
+                                                        (NStat _) -> Nothing
+                                                        (NReturn (AReturn _ s)) -> Just s
+                                                        (ExprCallExit _) -> Nothing
+                                                        (ExprCallEntry _ _) -> Nothing
+                                                        x -> error (show x) ) nodes --wrong, but works for now
+                   n2 = map (\x -> case x of
+                                   Nothing -> ([],[])
+                                   Just y -> ([], (concatMap (\(MExpr _ e) -> findUsedVars e)) y))  nodes2
+               in zipWith3 (\(k,g) (k1,g1) (l,_) -> (l , LV (union k k1) (union g g1) ) ) n' n2 nodes-}
 
 getSets :: Stat -> (KillSet,GenSet)
 getSets = kgStat
+
+sets :: (Node, NodeThing) -> (KillSet, GenSet)
+sets (i, (NStat stat))                 = kgStat stat
+sets (i, (UnknownFunction stat))       = kgStat stat
+sets (i, (UnknownFunctionExpr mexpr))  = kgMExpr mexpr
+sets (i, (CallEntry stat node))        = ([], [])
+sets (i, (CallExit stat))              = ([], [])
+sets (i, (ExprCallEntry mexpr node))   = ([], [])
+sets (i, (ExprCallExit mexpr))         = ([], [])
+sets (i, (NReturn areturn))            = kgAReturn areturn
+sets (i, (NExpr mexpr))                = kgMExpr mexpr
+sets (i, (NElseIf elseif))             = kgElseIf elseif
+
 
 outF l' a (gr,_) = out gr l'
 findUsedVars :: Expr -> [Token]

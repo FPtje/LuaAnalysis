@@ -71,6 +71,9 @@ kgMExpr a = let wrap = wrap_MExpr (sem_MExpr a) (Inh_MExpr) in (kill_Syn_MExpr w
 
 kgExpr :: Expr -> ([Token], [Token])
 kgExpr a = let wrap = wrap_Expr (sem_Expr a) (Inh_Expr) in (kill_Syn_Expr wrap, gen_Syn_Expr wrap)
+
+kgElseIf :: ElseIf -> ([Token], [Token])
+kgElseIf a = let wrap = wrap_ElseIf (sem_ElseIf a) (Inh_ElseIf) in (kill_Syn_ElseIf wrap, gen_Syn_ElseIf wrap)
 }
 
 {-
