@@ -85,8 +85,8 @@ type FuncEnv = M.Map DDispatch [FuncInfo]
 -- | Show instance for node labels
 instance Show NodeThing where
     show (NStat s)                = "Statement ("            ++ (PP.renderMStat s)                     ++ ") at " ++ PP.getMStatPos s
-    show (UnknownFunction s)      = "Non-defined function (" ++ (PP.renderMStat s)                     ++ ") at " ++ PP.getMStatPos s
-    show (UnknownFunctionExpr s)  = "Non-defined function (" ++ (PP.renderMExpr s)                     ++ ") at " ++ PP.getMExprPos s
+    show (UnknownFunction s)      = "Unknown function ("     ++ (PP.renderMStat s)                     ++ ") at " ++ PP.getMStatPos s
+    show (UnknownFunctionExpr s)  = "Unknown function ("     ++ (PP.renderMExpr s)                     ++ ") at " ++ PP.getMExprPos s
     show (CallEntry s n)          = "CallEntry ("            ++ (PP.renderMStat s)                     ++ ") at " ++ PP.getMStatPos s
     show (CallExit s)             = "CallExit ("             ++ (PP.renderMStat s)                     ++ ") at " ++ PP.getMStatPos s
     show (ExprCallEntry s n)      = "ExprCallEntry ("        ++ (PP.renderMExpr s)                     ++ ") at " ++ PP.getMExprPos s

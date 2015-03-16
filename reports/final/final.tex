@@ -56,8 +56,13 @@ cd analysis && cabal configure && cabal build
 This runs both the uuagc compiler and the GHC compiler, creating a executable called \texttt{gluanalysis} in the \texttt{analysis/dist/build/gluanalysis} directory.
 
 \section{Running the analyser}
-% TODO: dit verandert waarschijnlijk nog? Dus heb hier nog niks neergezet.
+The analyser takes code input from stdin and writes its results to stdout. Running the analyser with an example file is done as follows:
 
+\begin{lstlisting}[frame=single,numbers=none,caption=Running with an example file]
+cat somefile.lua | dist/build/gluanalysis/gluanalysis
+\end{lstlisting}
+
+This assumes the current working directory is set to \texttt{analysis/}.
 
 \section{Lattices and Analysis}
 Our analysis consists of finding dead code. To accomplish this we use three forms of analysis. The first one is a "reach" analysis, where we check if every node in the control flow graph of the program can be reached from the starting node. Nodes that are unreachable, are dead code.
