@@ -2,10 +2,11 @@
 \usepackage{hyperref}
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
+\usepackage{listings}
+
 %\title{Report for Automatic Program Analysis project 1}
 \title{Automatic Lua Code Analysis}
 \author{Eduard van der Bent \and Frank Dedden \and Wilco Kusee \and Falco Peijnenburg}
-
 
 \begin{document}
 \maketitle
@@ -89,24 +90,29 @@ We can handle the following lua constructs: Definitions, Function calls, Labels 
 \section{Example}
 In this section we will explain a running example. The code used for the example is the following:\\
 
-x = 1\\
-b = function(f)\\
-if f then\\
-a = f\\
-else \\
-a = f\\
-end\\
-return a\\
-end\\
-x = b(true)\\
-y = x\\
-if not x then\\
-print(y)\\
-end\\
-x = true\\
-while not x then\\
-print(y)\\
-end\\
+\begin{lstlisting}[frame=single,numbers=left,caption=Simple example] % lstlisting kent geen Lua, dus maar geen syntax highlighting
+x = 1
+b = function(f)
+    if f then
+        a = f
+    else
+        a = f
+    end
+    return a
+end
+
+x = b(true)
+y = x
+
+if not x then
+    print(y)
+end
+
+x = true
+while not x then
+    print(y)
+end
+\end{lstlisting}
 
 Its associated control flow graph is: \\
 \includegraphics[scale=0.45]{utTesta.png}
