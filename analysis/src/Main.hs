@@ -109,7 +109,7 @@ reachA file = do
 			exitWith (ExitFailure 1)
 
 		let ast = parseGLua tokens
-		putStrLn $ show $ mfp R.mEmbellishedFramework  (getGraph . fst $ ast)
+		putStrLn $ show $ mfp R.mFramework  (getGraph . fst $ ast)
 
 signA file = do
 		contents <- readFile file
@@ -132,6 +132,7 @@ signA file = do
 		let ast = parseGLua tokens
 
 		putStrLn . show $ mfp signFramework  (getGraph . fst $ ast)
+                putStrLn . show $ mfp mEmbellishedFramework  (getGraph . fst $ ast)
 deadcodeAnalysis file =
                 do
                         contents <- readFile file

@@ -33,11 +33,13 @@ mEmbellishedFramework = MF {joinOp=lJoin,joinOpReturn=lJoinR,iota=lIota,bottom=l
 type EmbellishedLive = M.Map [Node] [Token]
 
 lJoin :: EmbellishedLive -> EmbellishedLive -> EmbellishedLive
-lJoin = M.unionWith union
+lJoin a b = trace ("Normal join op: " ++ show a ++ " , " ++ show b ++ " Result: " ++ show (M.unionWith union a b) ) $ 
+                M.unionWith union a b
 
 lJoinR :: EmbellishedLive -> EmbellishedLive -> EmbellishedLive
-lJoinR = const
-
+lJoinR a b= trace ("JoinOpReturn: " ++ show a ++ " " ++ show b ++ " Result " ++ show (M.unionWith union a b) ) $
+        M.unionWith union a b -- M.unionWith union -- M.unionWith union
+        
 lIota :: EmbellishedLive
 lIota = M.fromList [([],[])]
 
@@ -45,22 +47,28 @@ lBottom :: EmbellishedLive
 lBottom = M.fromList [([],[])]
 
 lConsistent :: EmbellishedLive -> EmbellishedLive -> EdgeLabel -> Bool
-lConsistent x y l = trace (show (x,y,l)) $ M.isSubmapOf y x
+lConsistent x y l = let a = all null $ map snd $ trace ("Consistence: " ++ show x ++ "  " ++ show y ) $ M.toList $ M.unionWith (\a b -> if subset a b l then [] else a++b) x y -- check key difference
+                        b = M.keys x == M.keys y
+                    in a && b
 
 lTransfer :: NodeThing -> EmbellishedLive -> EmbellishedLive
 lTransfer nod r = case nod of 
-                  ExprCallEntry _ n -> (M.map (lvEntry nod) $ M.mapKeys (\x -> n:x ) r) -- Add'em, just copy the value over (M.map id) ; no: pattern match on function entry, add 'em
+                  ExprCallEntry _ n -> trace ("Entering call " ++ show r ++ " node: " ++ show nod ) $
+                                        (M.map (lvEntry nod) $M.mapKeys (\x -> case x of 
+                                                           { (_:xs) -> xs ;
+                                                             _ -> x }) r)  
                   _ -> M.map (lvEntry nod) r
                   
 lTransferReturn :: NodeThing -> NodeThing ->  EmbellishedLive -> EmbellishedLive ->  EmbellishedLive
-lTransferReturn _ _ r f = M.unionWith union r f
+lTransferReturn a b f r  = trace ("Returning, " ++ show a ++ show b ++ " Sets: " ++ show f ++ show r ++ " RR " ++ show ( M.mapKeys (\x -> 1:x ) f )++ "\n") $ 
+                                M.mapKeys (\x -> 1:x ) f
                                                              
 lOutFun ::  Node -> EmbellishedLive -> AnalysisGraph -> [AEdge]
-lOutFun l' reach (gr,_) = let isReturn = case M.keys reach of 
+lOutFun l' reach (gr,_) ={-let isReturn = case M.keys reach of 
                                          ((x:xs):ys) -> filter (\x -> doReturn x (head . head $ M.keys reach)) $ out gr l'
                                          _ -> []
-                          in if null isReturn then out gr l' else isReturn
-
+                          in if null isReturn then out gr l' else isReturn -}  out gr l'
+                          
 doReturn (_,_,Inter (a,_,_,_)) r = a == r
 doReturn a b = False
 

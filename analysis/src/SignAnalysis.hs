@@ -50,13 +50,13 @@ sBottom :: EmbellishedSign
 sBottom = M.fromList [([],M.empty)]
 
 sConsistent :: EmbellishedSign -> EmbellishedSign -> EdgeLabel -> Bool
-sConsistent x y l = undefined -- M.map (\a b -> signConsist a b l) x y
+sConsistent x y l = all M.null $ map snd $ M.toList $ M.unionWith (\a b -> if signConsist a b l then M.empty else M.union a b) x y
 
 sTransfer :: NodeThing -> EmbellishedSign -> EmbellishedSign
 sTransfer nod r = M.map (signAss nod) r 
                   
 sTransferReturn :: NodeThing -> NodeThing ->  EmbellishedSign -> EmbellishedSign ->  EmbellishedSign
-sTransferReturn a b c d = undefined --  M.map (M.map (synchReturn b) c) d
+sTransferReturn a (NReturn b) c d = M.unionWith (\e f -> synchReturn b e f) c d
                                                              
 sOutFun ::  Node -> EmbellishedSign -> AnalysisGraph -> [AEdge]
 sOutFun l' reach (gr,_) = out gr l'
@@ -65,13 +65,13 @@ signJoin :: SignType -> SignType -> SignType
 signJoin (I d) (I e) = I (L.union e d )
 signJoin (B d) (B e) = B (L.union e d)
 signJoin Bottom Bottom = Bottom
-signJoin a b = error ("mixing ints and bools" ++ show a ++ show b)
+signJoin a b = a -- error ("mixing ints and bools" ++ show a ++ show b)
 
 signJoinOver :: SignType -> SignType -> SignType
 signJoinOver (I d) (I e) = I (d)
 signJoinOver (B d) (B e) = B (d)
 signJoinOver Bottom Bottom = Bottom
-signJoinOver a b = error ("mixing ints and bools" ++ show a ++ show b)
+signJoinOver a b = a -- error ("mixing ints and bools" ++ show a ++ show b)
 
 signConsist :: SignAn -> SignAn -> EdgeLabel -> Bool
 signConsist a b c = keyDiff a b
@@ -97,6 +97,7 @@ signAss (NStat a) b = let ass = filter (\(x,y) -> y /= Bottom) $ catMaybes $ get
 signAss (NReturn _) b = b
 signAss (ExprCallExit _) ts = ts
 signAss (ExprCallEntry _ _) ts = ts
+signAss (UnknownFunction s) ts =ts
 signAss x _ = error $ show x
 
 getAss :: Stat -> SignAn -> [Maybe (Token,SignType)]

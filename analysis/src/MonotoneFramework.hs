@@ -34,7 +34,7 @@ mfp mf g@(gr, extremals) = let iter = iteration mf g workingList lblData
     extremalVals = map (\i -> (i, iota mf))  extremals
     lblData = M.fromList (extremalVals ++ nonExtremals) -- initial values
 
-    workingList = labEdges gr -- concatMap (out gr) extremals --all edges leaving from extremal value
+    workingList =  labEdges gr -- concatMap (out gr) extremals --all edges leaving from extremal value
 
     -- Create closed set
     mkClosed k = transfer mf (fromJust (lab gr k))
@@ -42,8 +42,7 @@ mfp mf g@(gr, extremals) = let iter = iteration mf g workingList lblData
 -- Performs monotone framework iterations
 iteration :: (Show a) => MF a -> AnalysisGraph -> WorkingList -> NodeLabels a -> NodeLabels a
 iteration _  _         []                  nl = nl
-iteration mf g@(gr, _) ((l, l', lbl) : xs) nl = 
-   if consistent mf transferred toNodeVal lbl then
+iteration mf g@(gr, _) ((l, l', lbl) : xs) nl = if consistent mf transferred toNodeVal lbl then
         iteration mf g xs nl -- Next iteration
     else iteration mf g newW newNl where
 
