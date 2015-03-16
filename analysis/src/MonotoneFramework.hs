@@ -6,7 +6,7 @@ import Data.Maybe
 import Debug.Trace
 import qualified Data.Map as M
 
--- Mononotone framework data type
+-- | Mononotone framework data type
 data MF a = MF {
     joinOp :: a -> a -> a,
     joinOpReturn :: a -> a -> a,
@@ -18,12 +18,12 @@ data MF a = MF {
     outfun :: Node -> a -> AnalysisGraph -> [AEdge]
 }
 
--- Working list
+-- | Working list
 type WorkingList = [AEdge]
--- NodeLabels
+-- | NodeLabels
 type NodeLabels a = M.Map Int a
 
--- Does initialisation of monotone framework.
+-- | Does initialisation of monotone framework.
 -- outsources the iteration to the "iteration" function
 mfp :: (Show a, Eq a) => MF a -> AnalysisGraph -> (NodeLabels a, NodeLabels a) -- (open, closed)
 mfp mf g@(gr, extremals) = let iter = iteration mf g workingList lblData
@@ -39,7 +39,7 @@ mfp mf g@(gr, extremals) = let iter = iteration mf g workingList lblData
     -- Create closed set
     mkClosed k = transfer mf (fromJust (lab gr k))
 
--- Performs monotone framework iterations
+-- | Performs monotone framework iterations
 iteration :: (Show a) => MF a -> AnalysisGraph -> WorkingList -> NodeLabels a -> NodeLabels a
 iteration _  _         []                  nl = nl
 iteration mf g@(gr, _) ((l, l', lbl) : xs) nl = if consistent mf transferred toNodeVal lbl then
