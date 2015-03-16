@@ -78,11 +78,33 @@ The lattices are defined as follows: %gebruik hier iets beters voor lel
 For the "reach" and Live Variable analysis, join is defined as the union. For Sign Analysis, we merge existing information of all the signs with the new information from the assignments in the nodes. As far as we know, we do not make use of widening.
 
 \section{Limitations}
-We did not manage to properly make the embellished part of the monotone framework work, therefore in all analyses there is mild / severe poisoning when trying to analyze programs with functions.
+We did not manage to properly make the embellished part of the monotone framework work, therefore in all analyses there is mild / severe poisoning when trying to analyze programs with functions. This is a bug that we have been unable to fix before the deadline. The code for the embellished framework is in place, for both forwards and reverse flow analysis.
 
-We can not handle the following lua constructs: local declarations and functions, for loops, tables and anonymous functions.
+Due to the dynamic dispatch problem, it can be hard to figure out where functions are defined. In Lua, functions can be defined anywhere as expressions. For example, this is a function stored deeply in a table:
+\begin{lstlisting}[frame=single,numbers=left,caption=Running with an example file]
+weirdTable = {
+  [1] = {
+    [a] = {
+        ["v: " .. _VERSION] = function()
+            if false then x = 5 end
+            return 3
+        end
+    }
+  }
+}
+\end{lstlisting}
+It is called like so:
+\begin{lstlisting}[frame=single,numbers=left,caption=Running with an example file]
+weirdTable[1][a]["v: " .. _VERSION]()
+\end{lstlisting}
 
-We can handle the following lua constructs: Definitions, Function calls, Labels and Goto's, Breaks, Continues, Do-blocks, While, Repeat and If.
+There is a solution for the dynamic dispatch problem, and it is very naive. When defining functions in tables, the functions are linked to the table variables themselves (\texttt{weirdTable} in this case) rather than some key of the table. When calling a function, it looks at the variable name (\texttt{weirdTable} again) and all of its suffix expressions. When there is a call in any of the suffix expressions, edges are made to all functions that are associated with this table. The result of this can be seen in example 5, which will show that \texttt{x = 5} is dead code.
+
+Tables can be edited in hindsight, this has not been accounted for, and may or may not work depending on the mood of the program. The analysis While loops, on the other hand, have been implemented.
+
+In short: the program can handle the following lua constructs: Definitions, local definitions (as long as they don't clash with global definitions), Function calls, unknown functions, functions defined in expressions, Labels and Goto's, Breaks, Continues, Do-blocks, While, Repeat and If.
+
+Besides that, there are some serious poisoning bugs and pattern match bugs that were not resolved simply because of a lack of time. We deeply apologize for this.
 
 
 \section{Example}

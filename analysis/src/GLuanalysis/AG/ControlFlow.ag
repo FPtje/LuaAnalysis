@@ -191,7 +191,7 @@ attr StatementStuff IfStuff
     -- For continue statements: where to return to
     inh cont :: Int
 
-attr MExpr Expr FieldList Field
+attr AllStuff
     -- Any (anonymous) functions defined in this expression
     syn funs use {++} {[]} :: {[FuncInfo]}
 
@@ -203,7 +203,7 @@ attr ExprSuffixList PFExprSuffix PrefixExp Expr
     -- Whether an expression represents a function call
     syn isCall use {&&} {False} :: Bool
 
-attr MExpr MExprList VarsList Declaration
+attr ExprStuff VarStuff
     -- Function calls in expressions, starting numbers
     syn exprInterCall use {++} {[]} :: {[Int]}
     -- Store links for future returns from the function in the expression to the caller
@@ -574,7 +574,7 @@ sem PrefixExp
 
 sem ExprSuffixList
     | Cons
-        lhs.isCall              = if null @tl.copy then @hd.isCall else @hd.isCall && @tl.isCall
+        lhs.isCall              = if null @tl.copy then @hd.isCall else @hd.isCall || @tl.isCall
     | Nil
         lhs.isCall              = False
 
