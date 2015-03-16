@@ -39,21 +39,21 @@ When we take a look inside the \texttt{analysis/src} directory, we can see the f
 Inside the \texttt{GLua} directory, we can find our implementation of a Lua parser. This parser is implemented in the Attribute Grammer system using the \texttt{uuagc} compiler. It creates an abstract syntax tree of the Lua language. % Leggen we niet verder uit, is niet echt onderdeel van het practicum
 
 The \texttt{GLuanalysis} directory houses the Attribute Grammar system that is used for the analysis of the Lua code. \texttt{AG/ControlFLow.ag} is the AG code that creates a control flow graph from the abstract syntax tree. This graph is later used to construct a monotone framework in the file \texttt{MonotoneFramework.hs}. This monotone framework is then used for analysing the input code.\\
+There are three instances of the monotone framework: live variable analysis, sign analysis and reachability analysis.
 \texttt{LiveVariables.hs} provides functions that check wether the variables in the input Lua code are either dead or alive.\\
-Similarly \texttt{reachable.hs} and \texttt{SignAnalysis.hs} check the code for reachable expressions and perform a sign analysis.\\
+Similarly \texttt{reachable.hs} and \texttt{SignAnalysis.hs} check the code for reachable expressions and perform the sign analysis.\\
 \texttt{Main.hs} provides some easy to use functions for applying the analyses that are found in the files described above.
 
 \section{Compiling the code}
 % TODO: de mainfile wordt misschien nog aangepast? dus het runnen ook?
-Compiling and running the code is quite easy. However you have to be sure that all the dependencies are installed beforehand. The Lua parser is the only external dependency which should be build and installed by hand. To do this follow these steps (which assume an sh compatible shell, or something similar):
+Compiling and running the code is quite easy. However you have to be sure that all the dependencies are installed beforehand. One of those dependencies (the GLua parser) is included in the project by default. This is because of issues related to UUAGC.
 
-\begin{enumerate}
-    \item \texttt{git clone https://github.com/FPtje/GLuaParser} \# Clone the git repo
-    \item \texttt{cd GLuaParser} \# Enter the directory
-    \item \texttt{cabal build \&\& cabal install} \# Build and install the parser
-\end{enumerate}
+GLuanalysis can be installed as follows. 
+\begin{lstlisting}[frame=single,numbers=none,caption=Compiling the project]
+cd analysis && cabal configure && cabal build
+\end{lstlisting}
 
-The parser depends on some dependencies (like \texttt{uuagc}, \texttt{uu-parsinglib} and \texttt{uuagc-cabal}), but these should be taken care of by cabal. Now GLuanalysis can be installed. This is as easy as executing \texttt{cabal build} in the \texttt{analysis} directory of the code distribution. This runs the uuagc compiler (which should be installed after building GLuaParser) and the GHC compiler, creating a executable in the \texttt{analysis/dist/build/gluanalysis} directory.
+This runs both the uuagc compiler and the GHC compiler, creating a executable called \texttt{gluanalysis} in the \texttt{analysis/dist/build/gluanalysis} directory.
 
 \section{Running the analyser}
 % TODO: dit verandert waarschijnlijk nog? Dus heb hier nog niks neergezet.
