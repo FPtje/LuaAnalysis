@@ -1,5 +1,4 @@
 module Main where
-import Debug.Trace
 import GLuanalysis.AG.ControlFlow
 import GLua.Lexer
 import GLua.TokenTypes
@@ -9,14 +8,10 @@ import Data.Graph.Inductive.Graph
 import Data.Graph.Inductive.PatriciaTree
 import Graphviz
 
-import Data.Char
 import Data.Map (toList)
 import Data.Maybe
 import Data.List (nub,(\\))
 
-import System.FilePath
-import System.Environment
-import System.IO
 import System.Exit
 import Control.Monad
 import MonotoneFramework
@@ -25,9 +20,32 @@ import qualified Reachable as R
 import qualified LiveVariables as LV
 import SignAnalysis
 
-main = putStrLn "Hello World"
+main :: IO ()
+main = do
+    contents <- getContents
 
-run file =do
+    let (ast, errors) = parseGLuaFromString contents
+
+    unless (null errors) $ do
+        mapM_ print errors
+        exitWith (ExitFailure 1)
+
+    let forwards@(grF, _) = getGraph ast
+    let backwards@(_, _) = getGraphR ast
+
+    let sign = toList $ fst $ mfp signFramework forwards
+    let reach = toList $ snd $ mfp R.mFramework forwards
+    let lv = toList $ snd $ mfp LV.mFramework backwards
+    let lv' = map (\(x, LV.LV k _) -> (x,k)) $ LV.createKG backwards
+    let lv2 = checkLV lv lv' grF
+    let deadcode = catMaybes $ zipEm sign reach lv2
+    let deadcode1 = mapMaybe (lab grF) deadcode
+
+    mapM print deadcode1
+    return ()
+
+run :: FilePath -> IO ()
+run file = do
 		contents <- readFile file
 
 		-- Lex the file
@@ -38,7 +56,7 @@ run file =do
 		unless (null errors) $ do
 			mapM_ print errors
 			-- Attempt to fix errors when asked
-			when (True) $ do
+			when True $ do
 				writeFile file . concatMap show $ tokens
 				putStrLn "Success"
 				exitSuccess
@@ -51,23 +69,24 @@ run file =do
 		putStrLn . prettify . fst . getGraph . fst $ ast
 
 		putStrLn "\nExtremal nodes:\n"
-		putStrLn . show . snd . getGraph . fst $ ast
+		print . snd . getGraph . fst $ ast
 
 		putStrLn "\nNodes\n"
-		putStrLn . show .  getNodes. fst $ ast
+		print .  getNodes. fst $ ast
 
 		putStrLn "\nDuplicate Nodes\n"
-		putStrLn . show $ (map fst $ getNodes. fst $ ast) \\ (nub . map fst . getNodes. fst $ ast)
+		print $ (map fst . getNodes. fst $ ast) \\ (nub . map fst . getNodes. fst $ ast)
 
 		putStrLn "\nEdges\n"
-		putStrLn . show . getEdges . fst $ ast
+		print . getEdges . fst $ ast
 
 		putStrLn "\nErrors:\n"
-		putStrLn . show . snd $ ast
+		print . snd $ ast
 
 		putStrLn "Pretty printed code:"
 		putStrLn . prettyprint . fst $ ast
 
+liveVar :: FilePath -> IO ()
 liveVar file = do
 		contents <- readFile file
 
@@ -79,7 +98,7 @@ liveVar file = do
 		unless (null errors) $ do
 			mapM_ print errors
 			-- Attempt to fix errors when asked
-			when (True) $ do
+			when True $ do
 				writeFile file . concatMap show $ tokens
 				putStrLn "Success"
 				exitSuccess
@@ -87,9 +106,10 @@ liveVar file = do
 			exitWith (ExitFailure 1)
 
 		let ast = parseGLua tokens
-		putStrLn $ show $ mfp LV.mEmbellishedFramework  (getGraphR . fst $ ast)
-                putStrLn $ show $ mfp LV.mFramework  (getGraphR . fst $ ast)
+		print $ mfp LV.mEmbellishedFramework  (getGraphR . fst $ ast)
+                print $ mfp LV.mFramework  (getGraphR . fst $ ast)
 
+reachA :: FilePath -> IO ()
 reachA file = do
 		contents <- readFile file
 
@@ -101,7 +121,7 @@ reachA file = do
 		unless (null errors) $ do
 			mapM_ print errors
 			-- Attempt to fix errors when asked
-			when (True) $ do
+			when True $ do
 				writeFile file . concatMap show $ tokens
 				putStrLn "Success"
 				exitSuccess
@@ -109,8 +129,9 @@ reachA file = do
 			exitWith (ExitFailure 1)
 
 		let ast = parseGLua tokens
-		putStrLn $ show $ mfp R.mFramework  (getGraph . fst $ ast)
+		print $ mfp R.mFramework  (getGraph . fst $ ast)
 
+signA :: FilePath -> IO ()
 signA file = do
 		contents <- readFile file
 
@@ -122,7 +143,7 @@ signA file = do
 		unless (null errors) $ do
 			mapM_ print errors
 			-- Attempt to fix errors when asked
-			when (True) $ do
+			when True $ do
 				writeFile file . concatMap show $ tokens
 				putStrLn "Success"
 				exitSuccess
@@ -131,8 +152,10 @@ signA file = do
 
 		let ast = parseGLua tokens
 
-		putStrLn . show $ mfp signFramework  (getGraph . fst $ ast)
-                putStrLn . show $ mfp mEmbellishedFramework  (getGraph . fst $ ast)
+		print $ mfp signFramework  (getGraph . fst $ ast)
+                print $ mfp mEmbellishedFramework  (getGraph . fst $ ast)
+
+deadcodeAnalysis :: FilePath -> IO ()
 deadcodeAnalysis file =
                 do
                         contents <- readFile file
@@ -145,7 +168,7 @@ deadcodeAnalysis file =
                         unless (null errors) $ do
                                 mapM_ print errors
                                 -- Attempt to fix errors when asked
-                                when (True) $ do
+                                when True $ do
                                         writeFile file . concatMap show $ tokens
                                         putStrLn "Success"
                                         exitSuccess
@@ -157,17 +180,17 @@ deadcodeAnalysis file =
                         let sign = toList $ fst $ mfp signFramework  (getGraph . fst $ ast)
                         let reach = toList $ snd $ mfp R.mFramework  (getGraph . fst $ ast)
                         let lv = toList $ snd $ mfp LV.mFramework  (getGraphR . fst $ ast)
-                        let lv' = map (\(x, LV.LV k g) -> (x,k)) $ LV.createKG (getGraphR . fst $ ast)
+                        let lv' = map (\(x, LV.LV k _) -> (x,k)) $ LV.createKG (getGraphR . fst $ ast)
                         let lv2 = checkLV lv lv' (fst $ getGraph . fst $ ast)
                         let deadcode = catMaybes $ zipEm sign reach lv2
                         let deadcode1 = map (lab (fst $ getGraph . fst $ ast)) deadcode
-                        putStrLn . show $ lv2 -- reach --(fst $ getGraph . fst $ ast)
+                        print lv2 -- reach --(fst $ getGraph . fst $ ast)
 
 checkLV :: [(Node,[Token])] -> [(Node,LV.KillSet)] -> Gr NodeThing EdgeLabel -> [(Node,Bool)]
 checkLV nodeset ((y,[]):xs) gr = (y,True) : checkLV nodeset xs gr
 checkLV nodeset ((y,g):xs) gr =  let adjacent = suc gr y
                                      nodeset' = concat $ catMaybes $ map (\x -> lookup x nodeset) adjacent
-                                 in (y,  or $ map (\x -> elem x nodeset') g) : checkLV nodeset xs gr
+                                 in (y,  any (`elem` nodeset') g) : checkLV nodeset xs gr
 checkLV nodeset [] gr = []
 
 zipEm :: [(Node,SignAn)] -> [(Node,Bool)] -> [(Node,Bool)] -> [Maybe Node]
@@ -188,7 +211,7 @@ viewGr file = do
 		unless (null errors) $ do
 			mapM_ print errors
 			-- Attempt to fix errors when asked
-			when (True) $ do
+			when True $ do
 				writeFile file . concatMap show $ tokens
 				putStrLn "Success"
 				exitSuccess
