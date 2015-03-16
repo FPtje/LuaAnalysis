@@ -70,6 +70,8 @@ The lattices are defined as follows: %gebruik hier iets beters voor lel
 \includegraphics[scale=0.5]{latticeLive.png}
 \includegraphics[scale=0.5]{latticeSign.png}
 
+For the "reach" and Live Variable analysis, join is defined as the union. For Sign Analysis, we merge existing information of all the signs with the new information from the assignments in the nodes. As far as we know, we do not make use of widening.
+
 \section{Limitations}
 We did not manage to properly make the embellished part of the monotone framework work, therefore in all analyses there is mild / severe poisoning when trying to analyze programs with functions.
 
