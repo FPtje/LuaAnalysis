@@ -87,7 +87,7 @@ keyDiff a b = let l = M.toList a
                                      Nothing -> Just x) l
                   m = catMaybes k
               in null m
-              
+
 containedIn Top kek = True
 containedIn kek Top = True
 containedIn Bottom Bottom = False
@@ -114,6 +114,11 @@ getAss s a= case s of
                                             vals' = map (\(MExpr _ e) -> calcAss e a) vals
                                             defs' = map (\(PFVar (MToken _ g) _) -> g) defs
                                       in map Just $ zipWith (,) defs' vals'
+                   (MStat p (LocDef v)) -> let defs = map fst v
+                                               vals = map snd v
+                                               vals' = map (\(MExpr _ e) -> calcAss e a) vals
+                                               defs' = map (\(PFVar (MToken _ g) _) -> g) defs
+                                           in map Just $ zipWith (,) defs' vals'
                    _ -> [Nothing]
 
 synchReturn (AReturn _ [MExpr _ e]) a b = let val = calcAss e b
@@ -157,7 +162,7 @@ calcAss e s =
                                                           Nothing -> Top -- error ("Lookup of " ++ show g ++ " failed, env: " ++ show s)
                ATableConstructor fs -> Bottom
                BinOpExpr op (MExpr _ l) (MExpr _ r) ->
-                                   if (calcAss l s == Top || calcAss r s == Top) then Top else 
+                                   if (calcAss l s == Top || calcAss r s == Top) then Top else
                                    case op of
                                     APlus -> let first = case  (calcAss l s) of
                                                         (I f) -> f
@@ -286,7 +291,7 @@ calcAss e s =
                                                 (B f) -> case second of
                                                          (B g) -> if f == [True] || g == [True] then B [True] else if not (elem True f) || not (elem True g) then B[False] else B[True,False]
                                                          _ -> Bottom
-               UnOpExpr op (MExpr _ r) -> if (calcAss r s == Top) then Top else 
+               UnOpExpr op (MExpr _ r) -> if (calcAss r s == Top) then Top else
                                case op of
                                 UnMinus -> let (I f) = calcAss r s
                                            in I (map unSignI f)
