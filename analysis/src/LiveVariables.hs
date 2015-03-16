@@ -93,25 +93,7 @@ createKG g = newnodes where
     nodes = labNodes . fst $ g
     kgsets = map (\(i, s) -> sets s) nodes
     newnodes = zipWith (\(k,g) (l,_) -> (l , LV k g)) kgsets nodes
-    {-let n' = map (\x -> case x of
-                                   Just y -> getSets y
-                                   Nothing -> ([],[])) nodes'
-                   nodes' =          map (\(l,s') -> case s' of
-                                                        (NStat s) -> Just s
-                                                        (NReturn _) -> Nothing
-                                                        (ExprCallExit _) -> Nothing
-                                                        (ExprCallEntry _ _) -> Nothing
-                                                        x -> error (show x) ) nodes --wrong, but works for now
-                   nodes2 =          map (\(l,s') -> case s' of
-                                                        (NStat _) -> Nothing
-                                                        (NReturn (AReturn _ s)) -> Just s
-                                                        (ExprCallExit _) -> Nothing
-                                                        (ExprCallEntry _ _) -> Nothing
-                                                        x -> error (show x) ) nodes --wrong, but works for now
-                   n2 = map (\x -> case x of
-                                   Nothing -> ([],[])
-                                   Just y -> ([], (concatMap (\(MExpr _ e) -> findUsedVars e)) y))  nodes2
-               in zipWith3 (\(k,g) (k1,g1) (l,_) -> (l , LV (union k k1) (union g g1) ) ) n' n2 nodes-}
+
 
 getSets :: Stat -> (KillSet,GenSet)
 getSets = kgStat
