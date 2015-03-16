@@ -91,7 +91,7 @@ subset x y _ = all (`elem` y) x
 createKG :: AnalysisGraph -> [(Node,LVNode)]
 createKG g = newnodes where
     nodes = labNodes . fst $ g
-    kgsets = map sets nodes
+    kgsets = map (\(i, s) -> sets s) nodes
     newnodes = zipWith (\(k,g) (l,_) -> (l , LV k g)) kgsets nodes
     {-let n' = map (\x -> case x of
                                    Just y -> getSets y
@@ -116,17 +116,17 @@ createKG g = newnodes where
 getSets :: Stat -> (KillSet,GenSet)
 getSets = kgStat
 
-sets :: (Node, NodeThing) -> (KillSet, GenSet)
-sets (i, (NStat stat))                 = kgStat stat
-sets (i, (UnknownFunction stat))       = kgStat stat
-sets (i, (UnknownFunctionExpr mexpr))  = kgMExpr mexpr
-sets (i, (CallEntry stat node))        = ([], [])
-sets (i, (CallExit stat))              = ([], [])
-sets (i, (ExprCallEntry mexpr node))   = ([], [])
-sets (i, (ExprCallExit mexpr))         = ([], [])
-sets (i, (NReturn areturn))            = kgAReturn areturn
-sets (i, (NExpr mexpr))                = kgMExpr mexpr
-sets (i, (NElseIf elseif))             = kgElseIf elseif
+sets :: NodeThing -> (KillSet, GenSet)
+sets (NStat stat)                 = kgStat stat
+sets (UnknownFunction stat)       = kgStat stat
+sets (UnknownFunctionExpr mexpr)  = kgMExpr mexpr
+sets (CallEntry stat node)        = ([], [])
+sets (CallExit stat)              = ([], [])
+sets (ExprCallEntry mexpr node)   = ([], [])
+sets (ExprCallExit mexpr)         = ([], [])
+sets (NReturn areturn)            = kgAReturn areturn
+sets (NExpr mexpr)                = kgMExpr mexpr
+sets (NElseIf elseif)             = kgElseIf elseif
 
 
 outF l' a (gr,_) = out gr l'
