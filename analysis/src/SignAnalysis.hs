@@ -25,7 +25,7 @@ import GLua.TokenTypes
 import MonotoneFramework
 
 type SignAn = M.Map Token SignType
-data SignType = I [IntType] | B [Bool] | Bottom
+data SignType = I [IntType] | B [Bool] | Bottom | Top
         deriving (Show,Eq)
 data IntType = N | Z | P
         deriving (Show,Eq,Ord)
@@ -64,12 +64,16 @@ sOutFun l' reach (gr,_) = out gr l'
 signJoin :: SignType -> SignType -> SignType
 signJoin (I d) (I e) = I (L.union e d )
 signJoin (B d) (B e) = B (L.union e d)
+signJoin Top _ = Top
+signJoin _ Top = Top
 signJoin Bottom Bottom = Bottom
 signJoin a b = a -- error ("mixing ints and bools" ++ show a ++ show b)
 
 signJoinOver :: SignType -> SignType -> SignType
 signJoinOver (I d) (I e) = I (d)
 signJoinOver (B d) (B e) = B (d)
+signJoinOver Top _ = Top
+signJoinOver _ Top = Top
 signJoinOver Bottom Bottom = Bottom
 signJoinOver a b = a -- error ("mixing ints and bools" ++ show a ++ show b)
 
@@ -83,7 +87,9 @@ keyDiff a b = let l = M.toList a
                                      Nothing -> Just x) l
                   m = catMaybes k
               in null m
-
+              
+containedIn Top kek = True
+containedIn kek Top = True
 containedIn Bottom Bottom = False
 containedIn (B a) (B b) = and $ map (\x -> elem x a) b
 containedIn (I a) (I b) = and $ map (\x -> elem x a) b
@@ -128,6 +134,7 @@ outF l' a (gr,_) =
                   Just c -> case calcAss c a of
                             (B [True]) -> filter (\(x,y,z) -> filterEdges z True ) outs
                             (B [False]) -> filter (\(x,y,z) -> filterEdges z False ) outs
+                            Top -> outs
                             (B [True,False]) -> outs
                             _ -> [] -- outs
 
@@ -147,9 +154,10 @@ calcAss e s =
                AnonymousFunc p b -> Bottom
                APrefixExpr (PFVar (MToken _ g) _) -> case M.lookup g s of
                                                           (Just a) -> a
-                                                          Nothing -> Bottom -- error ("Lookup of " ++ show g ++ " failed, env: " ++ show s)
+                                                          Nothing -> Top -- error ("Lookup of " ++ show g ++ " failed, env: " ++ show s)
                ATableConstructor fs -> Bottom
                BinOpExpr op (MExpr _ l) (MExpr _ r) ->
+                                   if (calcAss l s == Top || calcAss r s == Top) then Top else 
                                    case op of
                                     APlus -> let first = case  (calcAss l s) of
                                                         (I f) -> f
@@ -278,7 +286,7 @@ calcAss e s =
                                                 (B f) -> case second of
                                                          (B g) -> if f == [True] || g == [True] then B [True] else if not (elem True f) || not (elem True g) then B[False] else B[True,False]
                                                          _ -> Bottom
-               UnOpExpr op (MExpr _ r) ->
+               UnOpExpr op (MExpr _ r) -> if (calcAss r s == Top) then Top else 
                                case op of
                                 UnMinus -> let (I f) = calcAss r s
                                            in I (map unSignI f)

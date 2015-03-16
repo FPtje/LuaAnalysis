@@ -34,7 +34,7 @@ mfp mf g@(gr, extremals) = let iter = iteration mf g workingList lblData
     extremalVals = map (\i -> (i, iota mf))  extremals
     lblData = M.fromList (extremalVals ++ nonExtremals) -- initial values
 
-    workingList =  labEdges gr -- concatMap (out gr) extremals --all edges leaving from extremal value
+    workingList =  concatMap (out gr) extremals --all edges leaving from extremal value
 
     -- Create closed set
     mkClosed k = transfer mf (fromJust (lab gr k))
