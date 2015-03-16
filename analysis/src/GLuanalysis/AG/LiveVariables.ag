@@ -85,7 +85,7 @@ kgElseIf a = let wrap = wrap_ElseIf (sem_ElseIf a) (Inh_ElseIf) in (kill_Syn_Els
 ╚═╝  ╚═╝   ╚═╝      ╚═╝   ╚═╝  ╚═╝╚═╝╚═════╝  ╚═════╝    ╚═╝   ╚══════╝╚══════╝
 -}
 
-attr MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp
+attr AllStuff
   syn vars use {++} {[]} ::{[Token]}
   syn kill use {++} {[]} ::{[Token]}
   syn gen  use {++} {[]} ::{[Token]}

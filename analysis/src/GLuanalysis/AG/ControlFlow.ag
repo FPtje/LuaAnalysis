@@ -154,11 +154,6 @@ reverseEdge (a, b, lbl) = (b, a, lbl)
 ╚═╝  ╚═╝   ╚═╝      ╚═╝   ╚═╝  ╚═╝╚═╝╚═════╝  ╚═════╝    ╚═╝   ╚══════╝╚══════╝
 -}
 
-set StatementStuff  = Block MStatList MStat Stat AReturn
-set IfStuff         = ElseIf ElseIfList Else
-set ExprStuff       = PrefixExp PFExprSuffix MExpr Expr MExprList ExprSuffixList
-set VarStuff        = Args Field FieldList Declaration VarsList
-
 attr StatementStuff IfStuff ExprStuff VarStuff FuncName BinOp UnOp
     -- Copy of tree
     syn copy :: self
