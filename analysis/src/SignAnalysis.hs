@@ -53,11 +53,11 @@ sConsistent :: EmbellishedSign -> EmbellishedSign -> EdgeLabel -> Bool
 sConsistent x y l = all M.null $ map snd $ M.toList $ M.unionWith (\a b -> if signConsist a b l then M.empty else M.union a b) x y
 
 sTransfer :: NodeThing -> EmbellishedSign -> EmbellishedSign
-sTransfer nod r = M.map (signAss nod) r 
-                  
+sTransfer nod r = M.map (signAss nod) r
+
 sTransferReturn :: NodeThing -> NodeThing ->  EmbellishedSign -> EmbellishedSign ->  EmbellishedSign
 sTransferReturn a (NReturn b) c d = M.unionWith (\e f -> synchReturn b e f) c d
-                                                             
+
 sOutFun ::  Node -> EmbellishedSign -> AnalysisGraph -> [AEdge]
 sOutFun l' reach (gr,_) = out gr l'
 
@@ -100,13 +100,13 @@ signAss (ExprCallEntry _ _) ts = ts
 signAss (UnknownFunction s) ts =ts
 signAss x _ = error $ show x
 
-getAss :: Stat -> SignAn -> [Maybe (Token,SignType)]
+getAss :: MStat -> SignAn -> [Maybe (Token,SignType)]
 getAss s a= case s of
-                   (Def v) -> let defs = map fst v
-                                  vals = map snd v
-                                  vals' = map (\(MExpr _ e) -> calcAss e a) vals
-                                  defs' = map (\(PFVar (MToken _ g) _) -> g) defs
-                              in map Just $ zipWith (,) defs' vals'
+                   (MStat p (Def v)) -> let defs = map fst v
+                                            vals = map snd v
+                                            vals' = map (\(MExpr _ e) -> calcAss e a) vals
+                                            defs' = map (\(PFVar (MToken _ g) _) -> g) defs
+                                      in map Just $ zipWith (,) defs' vals'
                    _ -> [Nothing]
 
 synchReturn (AReturn _ [MExpr _ e]) a b = let val = calcAss e b
@@ -116,7 +116,7 @@ outF l' a (gr,_) =
                let nodething = fromJust $ lab gr l' :: NodeThing
                    outs = out gr l'
                    isConditional = case nodething of
-                                 (NStat d) -> case d of
+                                 (NStat (MStat _ d)) -> case d of
                                               (AIf (MExpr _ c) _ _ _) -> Just c
                                               (AWhile (MExpr _ c) _) -> Just c
                                               (ARepeat _ (MExpr _ c) ) -> Just c

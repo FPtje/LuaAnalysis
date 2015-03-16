@@ -95,12 +95,12 @@ createKG g = newnodes where
     newnodes = zipWith (\(k,g) (l,_) -> (l , LV k g)) kgsets nodes
 
 
-getSets :: Stat -> (KillSet,GenSet)
-getSets = kgStat
+getSets :: MStat -> (KillSet,GenSet)
+getSets = kgMStat
 
 sets :: NodeThing -> (KillSet, GenSet)
-sets (NStat stat)                 = kgStat stat
-sets (UnknownFunction stat)       = kgStat stat
+sets (NStat stat)                 = kgMStat stat
+sets (UnknownFunction stat)       = kgMStat stat
 sets (UnknownFunctionExpr mexpr)  = kgMExpr mexpr
 sets (CallEntry stat node)        = ([], [])
 sets (CallExit stat)              = ([], [])
