@@ -2,10 +2,11 @@
 \usepackage{hyperref}
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
+\usepackage{listings}
+
 %\title{Report for Automatic Program Analysis project 1}
 \title{Automatic Lua Code Analysis}
 \author{Eduard van der Bent \and Frank Dedden \and Wilco Kusee \and Falco Peijnenburg}
-
 
 \begin{document}
 \maketitle
@@ -25,32 +26,31 @@ For this assignment we have used monotone frameworks to eliminate dead code insi
 % TODO: komen er nog meer bestanden?
 When we take a look inside the \texttt{analysis/src} directory, we can see the following files and directories:
 \begin{itemize}
-	\item \texttt{GLua/}
-	\item \texttt{GLuanalysis/}
-	\item \texttt{Graphviz.hs}
-	\item \texttt{LiveVariables.hs}
-	\item \texttt{Main.hs}
-	\item \texttt{MonotoneFramework.hs}
-	\item \texttt{Reachable.hs}
-	\item \texttt{SignAnalysis.hs}
+    \item \texttt{GLua/}
+    \item \texttt{GLuanalysis/}
+    \item \texttt{Graphviz.hs}
+    \item \texttt{LiveVariables.hs}
+    \item \texttt{Main.hs}
+    \item \texttt{MonotoneFramework.hs}
+    \item \texttt{Reachable.hs}
+    \item \texttt{SignAnalysis.hs}
 \end{itemize}
 
 Inside the \texttt{GLua} directory, we can find our implementation of a Lua parser. This parser is implemented in the Attribute Grammer system using the \texttt{uuagc} compiler. It creates an abstract syntax tree of the Lua language. % Leggen we niet verder uit, is niet echt onderdeel van het practicum
 
 The \texttt{GLuanalysis} directory houses the Attribute Grammar system that is used for the analysis of the Lua code. \texttt{AG/ControlFLow.ag} is the AG code that creates a control flow graph from the abstract syntax tree. This graph is later used to construct a monotone framework in the file \texttt{MonotoneFramework.hs}. This monotone framework is then used for analysing the input code.\\
 \texttt{LiveVariables.hs} provides functions that check wether the variables in the input Lua code are either dead or alive.\\
-Similarly \texttt{reachable.hs} and \texttt{SignAnalysis.hs} check the code for reachable expressions and %TODO: wat is sign analysis.
-\\
+Similarly \texttt{reachable.hs} and \texttt{SignAnalysis.hs} check the code for reachable expressions and perform a sign analysis.\\
 \texttt{Main.hs} provides some easy to use functions for applying the analyses that are found in the files described above.
 
 \section{Compiling the code}
 % TODO: de mainfile wordt misschien nog aangepast? dus het runnen ook?
-Compiling and running the code is quite easy. However you have to be sure that all the dependencies are installed beforehand. The Lua parser is the only external dependency which should be build and installed by hand. To do this follow these steps (which assume a sh compatible shell, or something similar):
+Compiling and running the code is quite easy. However you have to be sure that all the dependencies are installed beforehand. The Lua parser is the only external dependency which should be build and installed by hand. To do this follow these steps (which assume an sh compatible shell, or something similar):
 
 \begin{enumerate}
-	\item \texttt{git clone https://github.com/FPtje/GLuaParser} \# Clone the git repo
-	\item \texttt{cd GLuaParser} \# Enter the directory
-	\item \texttt{cabal build \&\& cabal install} \# Build and install the parser
+    \item \texttt{git clone https://github.com/FPtje/GLuaParser} \# Clone the git repo
+    \item \texttt{cd GLuaParser} \# Enter the directory
+    \item \texttt{cabal build \&\& cabal install} \# Build and install the parser
 \end{enumerate}
 
 The parser depends on some dependencies (like \texttt{uuagc}, \texttt{uu-parsinglib} and \texttt{uuagc-cabal}), but these should be taken care of by cabal. Now GLuanalysis can be installed. This is as easy as executing \texttt{cabal build} in the \texttt{analysis} directory of the code distribution. This runs the uuagc compiler (which should be installed after building GLuaParser) and the GHC compiler, creating a executable in the \texttt{analysis/dist/build/gluanalysis} directory.
@@ -87,30 +87,36 @@ We can handle the following lua constructs: Definitions, Function calls, Labels 
 % - wat is de operator?
 
 \section{Example}
-In this section we will explain a running example. The code used for the example is the following:\\
+In this section we will explain a running example. The code used for the example is the following, and its associated control flow graph can be seen in figure \ref{fig:cfg}.\\
 
-x = 1\\
-b = function(f)\\
-if f then\\
-a = f\\
-else \\
-a = f\\
-end\\
-return a\\
-end\\
-x = b(true)\\
-y = x\\
-if not x then\\
-print(y)\\
-end\\
-x = true\\
-while not x then\\
-print(y)\\
-end\\
+\begin{lstlisting}[frame=single,numbers=left,caption=Simple example] % lstlisting kent geen Lua, dus maar geen syntax highlighting
+x = 1
+b = function(f)
+    if f then
+        a = f
+    else
+        a = f
+    end
+    return a
+end
 
-Its associated control flow graph is: \\
-\includegraphics[scale=0.45]{utTesta.png}
+x = b(true)
+y = x
 
+if not x then
+    print(y)
+end
+
+x = true
+while not x then
+    print(y)
+end
+\end{lstlisting}
+\begin{figure}[htp]
+    \includegraphics[scale=0.45]{utTesta.png}
+    \caption{Control flow graph of the example}
+    \label{fig:cfg}
+\end{figure}
 First of all we discuss the reach analysis. The first node is always reachable, and since there are no nodes without a parent, everything is reachable in this case.\\
 Second of all is the Live Variables analysis. The first assignment of x is done but it is not used when x gets its next assignment, so it is dead code.\\
 Finally, the Sign Analysis is done. When g is assigned true, the condition of the while loop will never be true. This means that the while-block is dead, and we choose not to visit the nodes of this block in the analysis. This means that the nodes of the block will have bottom as their value, and it is marked as dead code.\\
