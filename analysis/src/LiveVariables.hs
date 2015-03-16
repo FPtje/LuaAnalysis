@@ -8,6 +8,7 @@ import GLua.AG.AST
 import Data.Maybe
 import Data.List (union,(\\))
 import MonotoneFramework
+import GLuanalysis.AG.LiveVariables
 import Debug.Trace
 
 import qualified Data.Map as M
@@ -33,13 +34,13 @@ mEmbellishedFramework = MF {joinOp=lJoin,joinOpReturn=lJoinR,iota=lIota,bottom=l
 type EmbellishedLive = M.Map [Node] [Token]
 
 lJoin :: EmbellishedLive -> EmbellishedLive -> EmbellishedLive
-lJoin a b = trace ("Normal join op: " ++ show a ++ " , " ++ show b ++ " Result: " ++ show (M.unionWith union a b) ) $ 
+lJoin a b = trace ("Normal join op: " ++ show a ++ " , " ++ show b ++ " Result: " ++ show (M.unionWith union a b) ) $
                 M.unionWith union a b
 
 lJoinR :: EmbellishedLive -> EmbellishedLive -> EmbellishedLive
 lJoinR a b= trace ("JoinOpReturn: " ++ show a ++ " " ++ show b ++ " Result " ++ show (M.unionWith union a b) ) $
         M.unionWith union a b -- M.unionWith union -- M.unionWith union
-        
+
 lIota :: EmbellishedLive
 lIota = M.fromList [([],[])]
 
@@ -52,23 +53,23 @@ lConsistent x y l = let a = all null $ map snd $ trace ("Consistence: " ++ show 
                     in a && b
 
 lTransfer :: NodeThing -> EmbellishedLive -> EmbellishedLive
-lTransfer nod r = case nod of 
+lTransfer nod r = case nod of
                   ExprCallEntry _ n -> trace ("Entering call " ++ show r ++ " node: " ++ show nod ) $
-                                        (M.map (lvEntry nod) $M.mapKeys (\x -> case x of 
+                                        (M.map (lvEntry nod) $M.mapKeys (\x -> case x of
                                                            { (_:xs) -> xs ;
-                                                             _ -> x }) r)  
+                                                             _ -> x }) r)
                   _ -> M.map (lvEntry nod) r
-                  
+
 lTransferReturn :: NodeThing -> NodeThing ->  EmbellishedLive -> EmbellishedLive ->  EmbellishedLive
-lTransferReturn a b f r  = trace ("Returning, " ++ show a ++ show b ++ " Sets: " ++ show f ++ show r ++ " RR " ++ show ( M.mapKeys (\x -> 1:x ) f )++ "\n") $ 
+lTransferReturn a b f r  = trace ("Returning, " ++ show a ++ show b ++ " Sets: " ++ show f ++ show r ++ " RR " ++ show ( M.mapKeys (\x -> 1:x ) f )++ "\n") $
                                 M.mapKeys (\x -> 1:x ) f
-                                                             
+
 lOutFun ::  Node -> EmbellishedLive -> AnalysisGraph -> [AEdge]
-lOutFun l' reach (gr,_) ={-let isReturn = case M.keys reach of 
+lOutFun l' reach (gr,_) ={-let isReturn = case M.keys reach of
                                          ((x:xs):ys) -> filter (\x -> doReturn x (head . head $ M.keys reach)) $ out gr l'
                                          _ -> []
                           in if null isReturn then out gr l' else isReturn -}  out gr l'
-                          
+
 doReturn (_,_,Inter (a,_,_,_)) r = a == r
 doReturn a b = False
 
@@ -112,30 +113,6 @@ createKG g =    let nodes = labNodes . fst $ g
                 in newnodes
 
 getSets :: Stat -> (KillSet,GenSet)
-getSets s = case s of
-            (Def v) -> let declvars = map fst v
-                           usedvars = map snd v
-                           usedvars' = map (\(MExpr _ e) -> e) usedvars
-                           declvars' = map (\(PFVar (MToken _ g) _) -> g) declvars --lets assume no function calls for now
-                       in (declvars', concatMap findUsedVars usedvars') --deal with local vars
-            (AIf (MExpr _ e) _ _ _) -> ([],findUsedVars e)
-            (ABreak) -> ([],[])
-            (AWhile (MExpr _ e) _ ) -> ([],findUsedVars e)
-            (ARepeat _ (MExpr _ e)  ) -> ([],findUsedVars e)
-            (AFunc _ args _) -> ([],[]) -- (map (\(MToken _ g) -> g) args,[])
-            (AFuncCall (PFVar _ [Call (ListArgs ms)])) -> ([],concatMap (\(MExpr _ e) -> findUsedVars e) ms)
-            _ -> error (show s)
+getSets = kgStat
 
 outF l' a (gr,_) = out gr l'
-
-findUsedVars :: Expr -> [Token]
-findUsedVars e =
-                 case e of
-                 (APrefixExpr pre) -> findUsedVars'' pre
-                 (BinOpExpr _ a b) -> findUsedVars' a ++ findUsedVars' b
-                 (UnOpExpr _ a) -> findUsedVars' a
-                 _ -> []
-        where  findUsedVars' (MExpr _ e1) = findUsedVars e1
-               findUsedVars'' (PFVar (MToken _ g) [Call _]) = []
-               findUsedVars'' (PFVar (MToken _ g) _) = [g]
-               findUsedVars'' (ExprVar e _) = findUsedVars' e

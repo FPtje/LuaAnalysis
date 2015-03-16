@@ -1,0 +1,269 @@
+module {GLuanalysis.AG.LiveVariables}{}{}
+
+{-
+          _____                    _____                    _____                    _____                    _____
+         /\    \                  /\    \                  /\    \                  /\    \                  /\    \
+        /::\____\                /::\____\                /::\    \                /::\    \                /::\    \
+       /:::/    /               /:::/    /               /::::\    \              /::::\    \              /::::\    \
+      /:::/    /               /:::/    /               /::::::\    \            /::::::\    \            /::::::\    \
+     /:::/    /               /:::/    /               /:::/\:::\    \          /:::/\:::\    \          /:::/\:::\    \
+    /:::/    /               /:::/    /               /:::/__\:::\    \        /:::/  \:::\    \        /:::/  \:::\    \
+   /:::/    /               /:::/    /               /::::\   \:::\    \      /:::/    \:::\    \      /:::/    \:::\    \
+  /:::/    /      _____    /:::/    /      _____    /::::::\   \:::\    \    /:::/    / \:::\    \    /:::/    / \:::\    \
+ /:::/____/      /\    \  /:::/____/      /\    \  /:::/\:::\   \:::\    \  /:::/    /   \:::\ ___\  /:::/    /   \:::\    \
+|:::|    /      /::\____\|:::|    /      /::\____\/:::/  \:::\   \:::\____\/:::/____/  ___\:::|    |/:::/____/     \:::\____\
+|:::|____\     /:::/    /|:::|____\     /:::/    /\::/    \:::\  /:::/    /\:::\    \ /\  /:::|____|\:::\    \      \::/    /
+ \:::\    \   /:::/    /  \:::\    \   /:::/    /  \/____/ \:::\/:::/    /  \:::\    /::\ \::/    /  \:::\    \      \/____/
+  \:::\    \ /:::/    /    \:::\    \ /:::/    /            \::::::/    /    \:::\   \:::\ \/____/    \:::\    \
+   \:::\    /:::/    /      \:::\    /:::/    /              \::::/    /      \:::\   \:::\____\       \:::\    \
+    \:::\__/:::/    /        \:::\__/:::/    /               /:::/    /        \:::\  /:::/    /        \:::\    \
+     \::::::::/    /          \::::::::/    /               /:::/    /          \:::\/:::/    /          \:::\    \
+      \::::::/    /            \::::::/    /               /:::/    /            \::::::/    /            \:::\    \
+       \::::/    /              \::::/    /               /:::/    /              \::::/    /              \:::\____\
+        \::/____/                \::/____/                \::/    /                \::/____/                \::/    /
+         ~~                       ~~                       \/____/                                           \/____/
+
+-}
+
+{-
+██╗███╗   ███╗██████╗  ██████╗ ██████╗ ████████╗███████╗
+██║████╗ ████║██╔══██╗██╔═══██╗██╔══██╗╚══██╔══╝██╔════╝
+██║██╔████╔██║██████╔╝██║   ██║██████╔╝   ██║   ███████╗
+██║██║╚██╔╝██║██╔═══╝ ██║   ██║██╔══██╗   ██║   ╚════██║
+██║██║ ╚═╝ ██║██║     ╚██████╔╝██║  ██║   ██║   ███████║
+╚═╝╚═╝     ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝
+-}
+imports
+{
+import GLua.AG.AST
+import qualified Data.Map as M
+import Data.Maybe
+import GLua.TokenTypes
+}
+include "../../GLua/AG/AST.ag"
+
+{-
+██╗  ██╗███████╗██╗     ██████╗ ███████╗██████╗
+██║  ██║██╔════╝██║     ██╔══██╗██╔════╝██╔══██╗
+███████║█████╗  ██║     ██████╔╝█████╗  ██████╔╝
+██╔══██║██╔══╝  ██║     ██╔═══╝ ██╔══╝  ██╔══██╗
+██║  ██║███████╗███████╗██║     ███████╗██║  ██║
+
+███████╗██╗   ██╗███╗   ██╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗███████╗
+██╔════╝██║   ██║████╗  ██║██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
+█████╗  ██║   ██║██╔██╗ ██║██║        ██║   ██║██║   ██║██╔██╗ ██║███████╗
+██╔══╝  ██║   ██║██║╚██╗██║██║        ██║   ██║██║   ██║██║╚██╗██║╚════██║
+██║     ╚██████╔╝██║ ╚████║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║███████║
+-}
+{
+
+kgStat :: Stat -> ([Token], [Token])
+kgStat a = let wrap = wrap_Stat (sem_Stat a) (Inh_Stat) in (kill_Syn_Stat wrap, gen_Syn_Stat wrap)
+
+kgMStat :: MStat -> ([Token], [Token])
+kgMStat a = let wrap = wrap_MStat (sem_MStat a) (Inh_MStat) in (kill_Syn_MStat wrap, gen_Syn_MStat wrap)
+
+kgAReturn :: AReturn -> ([Token], [Token])
+kgAReturn a = let wrap = wrap_AReturn (sem_AReturn a) (Inh_AReturn) in (kill_Syn_AReturn wrap, gen_Syn_AReturn wrap)
+
+kgMExpr :: MExpr -> ([Token], [Token])
+kgMExpr a = let wrap = wrap_MExpr (sem_MExpr a) (Inh_MExpr) in (kill_Syn_MExpr wrap, gen_Syn_MExpr wrap)
+
+kgExpr :: Expr -> ([Token], [Token])
+kgExpr a = let wrap = wrap_Expr (sem_Expr a) (Inh_Expr) in (kill_Syn_Expr wrap, gen_Syn_Expr wrap)
+}
+
+{-
+ █████╗ ████████╗████████╗██████╗ ██╗██████╗ ██╗   ██╗████████╗███████╗███████╗
+██╔══██╗╚══██╔══╝╚══██╔══╝██╔══██╗██║██╔══██╗██║   ██║╚══██╔══╝██╔════╝██╔════╝
+███████║   ██║      ██║   ██████╔╝██║██████╔╝██║   ██║   ██║   █████╗  ███████╗
+██╔══██║   ██║      ██║   ██╔══██╗██║██╔══██╗██║   ██║   ██║   ██╔══╝  ╚════██║
+██║  ██║   ██║      ██║   ██║  ██║██║██████╔╝╚██████╔╝   ██║   ███████╗███████║
+╚═╝  ╚═╝   ╚═╝      ╚═╝   ╚═╝  ╚═╝╚═╝╚═════╝  ╚═════╝    ╚═╝   ╚══════╝╚══════╝
+-}
+
+attr MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp
+  syn vars use {++} {[]} ::{[Token]}
+  syn kill use {++} {[]} ::{[Token]}
+  syn gen  use {++} {[]} ::{[Token]}
+
+sem AST
+    | AST
+
+
+sem MStatList
+    | Cons
+    | Nil
+
+sem MExprList
+    | Cons
+    | Nil
+
+sem FieldList
+    | Cons
+    | Nil
+
+sem Declaration
+    | Tuple
+        lhs.kill                = @x1.vars
+        lhs.gen                 = @x2.vars
+
+sem VarsList
+    | Cons
+    | Nil
+
+sem ExprSuffixList
+    | Cons
+    | Nil
+
+sem ElseIf
+    | Tuple
+        lhs.gen                 = @x1.vars
+        lhs.kill                = []
+
+sem ElseIfList
+    | Cons
+    | Nil
+
+sem Else
+    | Just
+    | Nothing
+
+
+sem Block
+    | Block
+
+sem MStat
+    | MStat
+
+sem Stat
+    | ASemicolon
+    | Def
+        lhs.kill                = @vars.kill
+        lhs.gen                 = @vars.gen
+    | LocDef
+        lhs.kill                = @vars.kill
+        lhs.gen                 = @vars.gen
+    | AFuncCall
+        lhs.gen                 = @fn.vars
+        lhs.kill                = []
+    | ALabel
+        lhs.gen                 = []
+        lhs.kill                = []
+    | ABreak
+        lhs.gen                 = []
+        lhs.kill                = []
+    | AContinue
+        lhs.gen                 = []
+        lhs.kill                = []
+    | AGoto
+        lhs.gen                 = []
+        lhs.kill                = []
+    | ADo
+        lhs.kill                = []
+        lhs.gen                 = []
+    | AWhile
+        lhs.kill                = []
+        lhs.gen                 = @cond.vars
+    | ARepeat
+        lhs.kill                = []
+        lhs.gen                 = @cond.vars
+    | AIf
+        lhs.kill                = []
+        lhs.gen                 = @cond.vars ++ @elifs.gen
+    | ANFor
+        lhs.kill                = [mtok @var]
+        lhs.gen                 = {-mtok @var : -}@val.vars ++ @to.vars ++ @step.vars
+    | AGFor
+        lhs.kill                = map mtok @vars
+        lhs.gen                 = {-map mtok @vars ++ -}@vals.vars
+    | AFunc
+        lhs.kill                = @name.vars -- []
+        lhs.gen                 = [] {-@name.vars ++ map mtok @args-}
+    | ALocFunc
+        lhs.kill                = @name.vars -- []
+        lhs.gen                 = [] {-@name.vars ++ map mtok @args-}
+
+sem AReturn
+    | AReturn
+        lhs.kill                = []
+        lhs.gen                 = @values.vars
+    | NoReturn
+        lhs.kill                = []
+        lhs.gen                 = []
+
+sem FuncName
+    | FuncName
+        lhs.vars                = map mtok @names ++ map mtok (maybe [] (:[]) @meta)
+
+sem PrefixExp
+    | PFVar
+        lhs.vars                = mtok @name : @suffixes.vars
+    | ExprVar
+        lhs.vars                = @expr.vars ++ @suffixes.vars
+
+sem PFExprSuffix
+    | Call
+        lhs.vars                = @args.vars
+    | MetaCall
+        lhs.vars                = mtok @fn : @args.vars
+    | ExprIndex
+        lhs.vars                = @index.vars
+    | DotIndex
+        lhs.vars                = [mtok @index]
+
+sem MExpr
+    | MExpr
+
+sem Expr
+    | ANil
+        lhs.vars                = []
+    | AFalse
+        lhs.vars                = []
+    | ATrue
+        lhs.vars                = []
+    | ANumber
+        lhs.vars                = []
+    | AString
+        lhs.vars                = []
+    | AVarArg
+        lhs.vars                = []
+    | AnonymousFunc
+        lhs.vars                = [] -- don't count parameters as vars
+    | APrefixExpr
+    | ATableConstructor
+    | BinOpExpr
+    | UnOpExpr
+
+sem Args
+    | ListArgs
+        lhs.vars                = @args.vars
+    | TableArg
+        lhs.vars                = @arg.vars
+    | StringArg
+        lhs.vars                = []
+
+sem Field
+    | ExprField
+        lhs.vars                = @key.vars ++ @value.vars
+    | NamedField
+        lhs.vars                = @value.vars
+    | UnnamedField
+        lhs.vars                = @value.vars
+
+sem BinOp
+    | APlus
+    | BinMinus
+    | AMultiply
+    | ADivide
+    | AModulus
+    | APower
+    | AConcatenate
+    | ALT
+    | ALEQ
+    | AGT
+    | AGEQ
+    | AEq
+    | ANEq
+    | AAnd
+    | AOr

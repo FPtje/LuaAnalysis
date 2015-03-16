@@ -8,7 +8,9 @@
 rm src/GLua/AG/AST.hs
 rm src/GLua/AG/PrettyPrint.hs
 rm src/GLuanalysis/AG/ControlFlow.hs
+rm src/GLuanalysis/AG/LiveVariables.hs
 
 ln dist/build/luanalysis/luanalysis-tmp/GLua/AG/AST.hs src/GLua/AG/AST.hs
 ln dist/build/luanalysis/luanalysis-tmp/GLua/AG/PrettyPrint.hs src/GLua/AG/PrettyPrint.hs
 ln dist/build/luanalysis/luanalysis-tmp/GLuanalysis/AG/ControlFlow.hs src/GLuanalysis/AG/ControlFlow.hs
+ln dist/build/luanalysis/luanalysis-tmp/GLuanalysis/AG/LiveVariables.hs src/GLuanalysis/AG/LiveVariables.hs

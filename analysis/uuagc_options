@@ -1,6 +1,9 @@
 file : "src/GLuanalysis/AG/ControlFlow.ag"
 options : catas, haskellsyntax, semfuns, wrappers, signatures
 
+file : "src/GLuanalysis/AG/LiveVariables.ag"
+options : catas, haskellsyntax, semfuns, wrappers, signatures
+
 file : "src/GLua/AG/AST.ag"
 options : haskellsyntax, data
 
