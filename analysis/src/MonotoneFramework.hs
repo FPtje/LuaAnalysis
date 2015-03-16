@@ -52,15 +52,13 @@ iteration mf g@(gr, _) ((l, l', lbl) : xs) nl = if consistent mf transferred toN
     toNodeVal   = nl M.! l' -- A[l']
     lLabel      = getLbl l
     isReturn = case lbl of
-        Inter (c, _, e, r) -> 
-            if l' == r then True
-            else False
+        Inter (_, _, _, r) -> l' == r
         _ -> False  -- f_l(A[l])
-    transferred = 
+    transferred =
             if isReturn then -- Return part, or in reverse flow graph, the call part
                 -- Call the transfer function with arity 2. Give it info from the caller and from the exit
                 case lbl of
-                        Inter (c, _, e, r) -> transferReturn mf (getLbl c) (getLbl e) (nl M.! c) (nl M.! e)
+                        Inter (c, _, e, _) -> transferReturn mf (getLbl c) (getLbl e) (nl M.! c) (nl M.! e)
             else
                 -- Other side of the function call
                 transfer mf lLabel fromNodeVal
