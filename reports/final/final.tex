@@ -57,6 +57,8 @@ cd analysis && cabal configure && cabal build
 
 This runs both the uuagc compiler and the GHC compiler, creating a executable called \texttt{gluanalysis} in the \texttt{analysis/dist/build/gluanalysis} directory.
 
+There \texttt{createlinks} bash/bat file can be used to copy the compiled ag files next to the original ag files. These scripts are to be run if the desire exists to run individual modules through GHCi. GHCi will not find the modules defined in the ag files if this script is not run.
+
 \section{Running the analyser}
 The analyser takes code input from stdin and writes its results to stdout. Running the analyser with an example file is done as follows:
 
@@ -136,6 +138,7 @@ In short: the program can handle the following lua constructs: Definitions, loca
 
 Besides that, there are some serious poisoning bugs and pattern match bugs that were not resolved simply because of a lack of time. We deeply apologize for this.
 
+\newpage
 
 \section{Example}
 In this section we will explain a running example. The code used for the example is the following, and its associated control flow graph can be seen in figure \ref{fig:cfg}.
