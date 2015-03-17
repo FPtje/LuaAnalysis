@@ -73,7 +73,7 @@ The final analysis is Sign Analysis. This is done to check conditionals to check
 The result of these analyses is combined, checking for every node if it is dead in one of the analysis. If it is dead in at least one analysis, it is considered dead code.\\
 
 The lattices are defined as follows: \\ 
-Reach Analysis: \\
+Reach Analysis: $L = Node \; -> Bool $ \\
 \begin{tikzpicture}
 \matrix (a) [matrix of math nodes, column sep=0.6cm, row sep=0.5cm]{
 \top (True)\\
@@ -81,16 +81,16 @@ Reach Analysis: \\
 \draw (a-1-1) -- (a-2-1);
 \end{tikzpicture}
 
-Live Variables Analysis: \\
+Live Variables Analysis: $ L = Node \; -> [Token] $ \\
 
 \begin{tikzpicture}
 \matrix (a) [matrix of math nodes, column sep=0.6cm, row sep=0.5cm]{
 \top [Token] \\
-\bot [Token],empty \\};
+\bot [] \\};
 \draw (a-1-1) -- (a-2-1);
 \end{tikzpicture}
 
-Sign Analysis: \\
+Sign Analysis: $ L = Node -> Map \; Token \; SignType $\\
 
 \begin{tikzpicture}
 \matrix (a) [matrix of math nodes, column sep=0.6cm, row sep=0.5cm]{
