@@ -29,9 +29,10 @@ data SignType = I [IntType] | B [Bool] | Bottom | Top
         deriving (Show,Eq)
 data IntType = N | Z | P
         deriving (Show,Eq,Ord)
+-- | Monotone framework instance of sign analysis
 signFramework :: MF SignAn
 signFramework = MF {joinOp=M.unionWith signJoin,joinOpReturn=M.unionWith signJoinOver,iota=M.empty,bottom=M.empty,consistent=signConsist,transfer=signAss,transferReturn= \ a (NReturn b) c d -> synchReturn b c d ,outfun=outF}
-
+-- | Embellished Monotone framework instance of sign analysis
 mEmbellishedFramework :: MF EmbellishedSign
 mEmbellishedFramework = MF {joinOp=sJoin,joinOpReturn=sJoinR,iota=sIota,bottom=sBottom,consistent=sConsistent,transfer=sTransfer,transferReturn=sTransferReturn,outfun=sOutFun}
 
@@ -60,7 +61,7 @@ sTransferReturn a (NReturn b) c d = M.unionWith (\e f -> synchReturn b e f) c d
 
 sOutFun ::  Node -> EmbellishedSign -> AnalysisGraph -> [AEdge]
 sOutFun l' reach (gr,_) = out gr l'
-
+-- | Join function to merge signs, this is monotone.
 signJoin :: SignType -> SignType -> SignType
 signJoin (I d) (I e) = I (L.union e d )
 signJoin (B d) (B e) = B (L.union e d)
@@ -69,6 +70,7 @@ signJoin _ Top = Top
 signJoin Bottom Bottom = Bottom
 signJoin a b = a -- error ("mixing ints and bools" ++ show a ++ show b)
 
+-- | Join function to merge signs from a return.
 signJoinOver :: SignType -> SignType -> SignType
 signJoinOver (I d) (I e) = I (d)
 signJoinOver (B d) (B e) = B (d)
@@ -76,10 +78,11 @@ signJoinOver Top _ = Top
 signJoinOver _ Top = Top
 signJoinOver Bottom Bottom = Bottom
 signJoinOver a b = a -- error ("mixing ints and bools" ++ show a ++ show b)
-
+-- | Consistence function
 signConsist :: SignAn -> SignAn -> EdgeLabel -> Bool
 signConsist a b c = keyDiff a b
 
+-- | Function to check differences in keys, such that (x,I [P]) and (y,I [P]) are marked as different
 keyDiff :: (Ord k,Show k) => M.Map k SignType -> M.Map k SignType -> Bool
 keyDiff a b = let l = M.toList a
                   k = map (\(x,y) -> case M.lookup x b of
@@ -87,7 +90,7 @@ keyDiff a b = let l = M.toList a
                                      Nothing -> Just x) l
                   m = catMaybes k
               in null m
-
+-- | Function to see if the values of associated keys are consistent
 containedIn Top kek = True
 containedIn kek Top = True
 containedIn Bottom Bottom = False
@@ -95,6 +98,7 @@ containedIn (B a) (B b) = and $ map (\x -> elem x a) b
 containedIn (I a) (I b) = and $ map (\x -> elem x a) b
 containedIn a b = False
 
+-- | Function to map a node to a sign.
 signAss :: NodeThing -> SignAn -> SignAn
 signAss (NStat a) b = let ass = filter (\(x,y) -> y /= Bottom) $ catMaybes $ getAss a b
                       in  inserts ass b
@@ -107,6 +111,7 @@ signAss (UnknownFunction s) ts =ts
 signAss (UnknownFunctionExpr s) ts =ts
 signAss x _ = error $ show x
 
+-- | Function that gets all the assignments from a statement
 getAss :: MStat -> SignAn -> [Maybe (Token,SignType)]
 getAss s a= case s of
                    (MStat p (Def v)) -> let defs = map fst v
@@ -120,9 +125,10 @@ getAss s a= case s of
                                                defs' = map (\(PFVar (MToken _ g) _) -> g) defs
                                            in map Just $ zipWith (,) defs' vals'
                    _ -> [Nothing]
-
+-- | Function that merges returned assignments and current assignments.
 synchReturn (AReturn _ [MExpr _ e]) a b = let val = calcAss e b
                                           in M.fromList $ map (\(x,c) -> (x,val)) $(M.toList a)
+-- | Function that calculates the out-edges that should be visited                                          
 outF :: Node -> SignAn -> AnalysisGraph -> [AEdge]
 outF l' a (gr,_) =
                let nodething = fromJust $ lab gr l' :: NodeThing
@@ -142,11 +148,12 @@ outF l' a (gr,_) =
                             Top -> outs
                             (B [True,False]) -> outs
                             _ -> [] -- outs
-
+-- | Function that considers edges associated with functions.
 filterEdges (Intra g ) f = g == f
 filterEdges (Inter _) f = f
 filterEdges (ExprInter g ) f = f
 
+-- | Function which calculates the sign of an expression.
 calcAss :: Expr -> SignAn -> SignType
 calcAss e s =
               case e of
@@ -299,7 +306,7 @@ calcAss e s =
                                          in B $ map not f
                                 AHash -> Bottom
                _ -> error "ayy"
-
+-- | Function that flips the sign of an IntType, used in negation.
 unSignI :: IntType -> IntType
 unSignI Z = Z
 unSignI N = P

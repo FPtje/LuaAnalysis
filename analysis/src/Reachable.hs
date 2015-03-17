@@ -15,11 +15,13 @@ import MonotoneFramework
 mFramework :: MF {- Map [Node] -} Bool
 mFramework = MF {joinOp=(||),joinOpReturn=(||),iota=True,bottom=False,consistent= \a b _ -> a && b,transfer= \_ y -> y, transferReturn= \_ _ b c -> c , outfun= \l' _ (gr,_) -> out gr l'}
 
+-- | Embellished monotone framework instance of the above
 mEmbellishedFramework :: MF EmbellishedReach
 mEmbellishedFramework = MF {joinOp=rJoin,joinOpReturn=rJoinR,iota=rIota,bottom=rBottom,consistent=rConsistent,transfer=rTransfer,transferReturn=rTransferReturn,outfun=rOutFun}
 
 type EmbellishedReach = M.Map [Node] Bool
 
+-- Functions of the embellished monotone framework instance
 rJoin :: EmbellishedReach -> EmbellishedReach -> EmbellishedReach
 rJoin = M.unionWith (||)
 

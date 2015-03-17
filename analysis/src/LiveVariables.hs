@@ -72,7 +72,7 @@ lOutFun l' reach (gr,_) ={-let isReturn = case M.keys reach of
 
 doReturn (_,_,Inter (a,_,_,_)) r = a == r
 doReturn a b = False
-
+-- | Transfer function of Live Variables.
 lvEntry :: NodeThing -> [Token] -> [Token]
 lvEntry (NStat n) ts = let (killset,genset) = getSets n
                        in (ts \\ killset) `union` genset
@@ -85,16 +85,16 @@ lvEntry (UnknownFunction s) ts = let (killset,genset) = getSets s
 lvEntry (UnknownFunctionExpr s) ts = ts `union` varsMExpr s
 lvEntry x ts = error $ show x
 
-
+-- | Subset, the consistence function of the monotone framework instance
 subset :: Eq a => [a] -> [a] -> EdgeLabel -> Bool
 subset x y _ = all (`elem` y) x
 
+-- | Function to create the Kill/Gen set of a graph
 createKG :: AnalysisGraph -> [(Node,LVNode)]
 createKG g = newnodes where
     nodes = labNodes . fst $ g
     kgsets = map (\(i, s) -> sets s) nodes
     newnodes = zipWith (\(k,g) (l,_) -> (l , LV k g)) kgsets nodes
-
 
 getSets :: MStat -> (KillSet,GenSet)
 getSets = kgMStat
