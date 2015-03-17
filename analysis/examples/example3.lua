@@ -1,9 +1,8 @@
 x = true
 z = false
 if z then
-x = true
-break
+    x = true
 else
-x = z
+    x = z
 end
 if x then x = true else x = false end
