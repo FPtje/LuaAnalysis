@@ -9,6 +9,7 @@ import Data.Maybe
 import Data.List (union,(\\))
 import MonotoneFramework
 import GLuanalysis.AG.LiveVariables
+import GLua.AG.Token
 import Debug.Trace
 
 import qualified Data.Map as M

@@ -7,21 +7,19 @@
 -- | Lex GLua into MTokens
 module GLua.Lexer where
 
-import GLua.TokenTypes
-
-import Data.List
+import GLua.AG.Token
 
 import Text.ParserCombinators.UU
 import Text.ParserCombinators.UU.Utils
 import Text.ParserCombinators.UU.BasicInstances
-import Text.ParserCombinators.UU.Derived
 
 -- | String parser that maintains positions.
 type LParser a = P (Str Char String LineColPos) a
 
 -- | Whitespace parser.
 parseWhitespace :: LParser String
-parseWhitespace = pMunch (`elem` " \r\n\t")
+parseWhitespace = pSome $ pSatisfy (`elem` " \r\n\t") (Insertion "Whitespace" ' ' 5)
+    --MToken <$> pPos <*> (Whitespace <$> pMunch (`elem` " \r\n\t"))
 
 -- | Blanco parser. Parses anything. Used in parsing comments.
 parseAnyChar :: LParser Char
@@ -95,7 +93,7 @@ parseLineString c = pSym c *> innerString
     where
         innerString :: LParser String
         innerString = pSym '\\' <**> -- Escaped character in string always starts with backslash
-                         ((\c str esc -> esc : c : str) <$> parseAnyChar <*> innerString) <<|>
+                         ((\c' str esc -> esc : c' : str) <$> parseAnyChar <*> innerString) <<|>
                       const "" <$> pSym c <<|> -- the end of the string
                       (:) <$> pNoNewline <*> innerString -- the next character in the string
 
@@ -114,11 +112,14 @@ parseString = DQString <$> parseLineString '"' <<|>
 
 -- | Parse any kind of number.
 parseNumber :: LParser Token
-parseNumber = TNumber <$> ((++) <$> (pHexadecimal <<|> pNumber) <*> opt pSuffix "")
+parseNumber = TNumber <$> ((++) <$> (pHexadecimal <<|> pNumber) <*> opt parseNumberSuffix "")
 
     where
         pNumber :: LParser String
-        pNumber = (++) <$> pSome pDigit <*> opt ((:) <$> pSym '.' <*> pSome pDigit) ""
+        pNumber = (++) <$> pSome pDigit <*> opt pDecimal ""
+
+        pDecimal :: LParser String
+        pDecimal = (:) <$> pSym '.' <*> pSome pDigit
 
         pHexadecimal :: LParser String
         pHexadecimal = (++) <$> pToken "0x" <*> pSome pHex
@@ -127,10 +128,11 @@ parseNumber = TNumber <$> ((++) <$> (pHexadecimal <<|> pNumber) <*> opt pSuffix 
         pHex = pDigit <<|> pSym 'a' <<|> pSym 'b' <<|> pSym 'c' <<|> pSym 'd' <<|> pSym 'e' <<|> pSym 'f'
                       <<|> pSym 'A' <<|> pSym 'B' <<|> pSym 'C' <<|> pSym 'D' <<|> pSym 'E' <<|> pSym 'F'
 
-        pSuffix :: LParser String
-        pSuffix = (\e s d -> e : s ++ d) <$> (pSym 'e' <<|> pSym 'E' <<|> pSym 'p' <<|> pSym 'P')
-                    <*> opt (pToken "+" <<|> pToken "-") ""
-                    <*> pSome pDigit
+-- Parse the suffix of a number
+parseNumberSuffix :: LParser String
+parseNumberSuffix = (\e s d -> e : s ++ d) <$> (pSym 'e' <<|> pSym 'E' <<|> pSym 'p' <<|> pSym 'P')
+            <*> opt (pToken "+" <<|> pToken "-") ""
+            <*> pSome pDigit
 
 -- | Parse a keyword. Note: It must really a key/word/! This parser makes sure to return an identifier when
 -- it's actually an identifier that starts with that keyword.
@@ -157,6 +159,7 @@ parseDots = pToken "." <**> ( -- A dot means it's either a VarArg (...), concate
                     const VarArg <$ pToken "." <<|>
                     const <$> pReturn Concatenate
                 )) <<|>
+                (\ds sfx dot -> TNumber $ dot ++ ds ++ sfx) <$> pSome pDigit <*> opt parseNumberSuffix "" <<|>
                 const <$> pReturn Dot
                 )
 
@@ -214,7 +217,7 @@ parseToken =    parseComment                                 <<|>
                 Label <$> parseLabel                         <<|>
                 Colon <$ pToken ":"                          <<|>
                 Comma <$ pToken ","                          <<|>
-                Hash <$ pToken "#"                           <<|>
+                Hash <$ pToken "#"  `micro` 10               <<|> -- Add micro cost to prevent conflict with parseHashBang
                 CAnd <$ pToken "&&"                          <<|>
                 COr <$ pToken "||"                           <<|>
 
@@ -222,13 +225,24 @@ parseToken =    parseComment                                 <<|>
                 RRound <$ pToken ")"                         <<|>
                 LCurly <$ pToken "{"                         <<|>
                 RCurly <$ pToken "}"                         <<|>
-                RSquare <$ pToken "]" -- Other square bracket is parsed in parseString
+                -- Other square bracket is parsed in parseString
+                RSquare <$ pToken "]"                        <<|>
+                Whitespace <$> parseWhitespace
 
 -- | Parse a list of tokens and turn them into MTokens.
 parseTokens :: LParser [MToken]
-parseTokens = pMany (MToken <$> pPos <*> parseToken <* parseWhitespace)
+parseTokens = pMany (MToken <$> pPos <*> parseToken)
+
+-- | Parse the potential #!comment on the first line
+-- Lua ignores the first line if it starts with #
+parseHashBang :: LParser String
+parseHashBang = opt (pToken "#" <* pUntilEnd) ""
+
+-- | Lex a string with a given lexer
+lexFromString :: LParser a -> String -> (a, [Error LineColPos])
+lexFromString p = parse ((,) <$> p <*> pErrors <* pEnd) . createStr (LineColPos 0 0 0)
 
 -- | Parse a string into MTokens. Also returns parse errors.
 execParseTokens :: String -> ([MToken], [Error LineColPos])
-execParseTokens = parse ((,) <$ parseWhitespace <*> parseTokens <*> pErrors <* pEnd) . createStr (LineColPos 0 0 0)
+execParseTokens = parse ((,) <$ parseHashBang <*> parseTokens <*> pErrors <* pEnd) . createStr (LineColPos 0 0 0)
 

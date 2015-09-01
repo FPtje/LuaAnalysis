@@ -1,6 +1,7 @@
 module SignAnalysis where
 
 import GLuanalysis.AG.ControlFlow
+import GLua.AG.Token
 import GLua.Lexer
 import GLua.TokenTypes
 import GLua.Parser
@@ -112,23 +113,23 @@ signAss (UnknownFunctionExpr s) ts =ts
 signAss x _ = error $ show x
 
 -- | Function that gets all the assignments from a statement
-getAss :: MStat -> SignAn -> [Maybe (Token,SignType)]
+getAss :: MStat -> SignAn -> [Maybe (Token, SignType)]
 getAss s a= case s of
                    (MStat p (Def v)) -> let defs = map fst v
                                             vals = map snd v
-                                            vals' = map (\(MExpr _ e) -> calcAss e a) vals
+                                            vals' = map (\(MExpr _ e) -> calcAss e a) . catMaybes $ vals
                                             defs' = map (\(PFVar (MToken _ g) _) -> g) defs
                                       in map Just $ zipWith (,) defs' vals'
                    (MStat p (LocDef v)) -> let defs = map fst v
                                                vals = map snd v
-                                               vals' = map (\(MExpr _ e) -> calcAss e a) vals
+                                               vals' = map (\(MExpr _ e) -> calcAss e a) . catMaybes $ vals
                                                defs' = map (\(PFVar (MToken _ g) _) -> g) defs
                                            in map Just $ zipWith (,) defs' vals'
                    _ -> [Nothing]
 -- | Function that merges returned assignments and current assignments.
 synchReturn (AReturn _ [MExpr _ e]) a b = let val = calcAss e b
                                           in M.fromList $ map (\(x,c) -> (x,val)) $(M.toList a)
--- | Function that calculates the out-edges that should be visited                                          
+-- | Function that calculates the out-edges that should be visited
 outF :: Node -> SignAn -> AnalysisGraph -> [AEdge]
 outF l' a (gr,_) =
                let nodething = fromJust $ lab gr l' :: NodeThing

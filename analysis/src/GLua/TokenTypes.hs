@@ -1,86 +1,13 @@
--- | Definitions of GLua tokens and metatokens
+-- | Contains class instances and functions related to tokens
 module GLua.TokenTypes where
 
 import Data.List
-import Text.ParserCombinators.UU.BasicInstances (LineColPos)
+import Text.ParserCombinators.UU.BasicInstances
+import GLua.AG.Token
 
--- | Simple token types
-data Token =
-    -- Comments
-    DashComment String          |   -- ^ dash comment
-    DashBlockComment Int String |   -- ^ where the Int is the depth of the comment delimiter, i.e. the amount of '='-signs in -[=[]=]
-    SlashComment String         |   -- ^ C-style slash line comment
-    SlashBlockComment String    |   -- ^ C-style slash block comment
-    Semicolon                   |   -- ^ ;
 
-    -- Constants
-    TNumber String              |
-    DQString String             |   -- ^ Double quote string
-    SQString String             |   -- ^ Single quote string
-    MLString String             |   -- ^ Multiline string
-    TTrue                       |   -- ^ true
-    TFalse                      |   -- ^ false
-    Nil                         |   -- ^ nil
-    VarArg                      |   -- ^ ...
-
-    -- Operators
-    Plus                        |   -- ^ +
-    Minus                       |   -- ^ -
-    Multiply                    |   -- ^ *
-    Divide                      |   -- ^ /
-    Modulus                     |   -- ^ %
-    Power                       |   -- ^ ^
-    TEq                         |   -- ^ ==
-    TNEq                        |   -- ^ ~=
-    TCNEq                       |   -- ^ !=
-    TLEQ                        |   -- ^ <=
-    TGEQ                        |   -- ^ >=
-    TLT                         |   -- ^ <
-    TGT                         |   -- ^ >
-    Equals                      |   -- ^ =
-    Concatenate                 |   -- ^ ..
-    Colon                       |   -- ^ :
-    Dot                         |   -- ^ .
-    Comma                       |   -- ^ ,
-    Hash                        |   -- ^ #
-    Not                         |   -- ^ not
-    CNot                        |   -- ^ !
-    And                         |   -- ^ and
-    CAnd                        |   -- ^ &&
-    Or                          |   -- ^ or
-    COr                         |   -- ^ ||
-
-    -- Keywords
-    Function                    |
-    Local                       |
-    If                          |
-    Then                        |
-    Elseif                      |
-    Else                        |
-    For                         |
-    In                          |
-    Do                          |
-    While                       |
-    Until                       |
-    Repeat                      |
-    Continue                    |
-    Break                       |
-    Return                      |
-    End                         |
-    Goto                        |
-
-    LRound                      |   -- ^ (
-    RRound                      |   -- ^ )
-    LCurly                      |   -- ^ {
-    RCurly                      |   -- ^ }
-    LSquare                     |   -- ^ [
-    RSquare                     |   -- ^ ]
-    Label String                |   -- ^ ::label
-    Identifier String
-    deriving (Eq, Ord)
-
--- | Metatoken, stores line and column position of token
-data MToken = MToken {mpos :: LineColPos, mtok :: Token} deriving (Show)
+instance Show MToken where
+    show (MToken _ tok) = show tok
 
 -- | Simple EQ instance. TODO: check for position equality
 instance Eq MToken where
@@ -92,6 +19,12 @@ instance Ord MToken where
 
 -- | Metatoken algebra
 type MTokenAlgebra mtok = LineColPos -> Token -> mtok
+
+mpos :: MToken -> LineColPos
+mpos (MToken p _) = p
+
+mtok :: MToken -> Token
+mtok (MToken _ t) = t
 
 -- | Fold over metatoken
 foldMToken :: MTokenAlgebra t -> MToken -> t
@@ -106,6 +39,7 @@ mFold alg mt = foldMToken f mt
 -- | Huge token algebra
 type TokenAlgebra token = (
     ( -- Comments and whitespace
+        String -> token,
         String -> token,    -- DashComment
         Int -> String -> token,    -- DashBlockComment
         String -> token,    -- SlashComment
@@ -184,8 +118,9 @@ type TokenAlgebra token = (
 
 -- | Fold over token definition
 foldToken :: TokenAlgebra t -> Token -> t
-foldToken ((tDashComment, tDashBlockComment, tSlashComment, tSlashBlockComment, tSemicolon), (tTNumber, tDQString, tSQString, tMLString, tTTrue, tTFalse, tNil, tVarArg), (tPlus, tMinus, tMultiply, tDivide, tModulus, tPower, tTEq, tTNEq, tTCNEq, tTLEQ, tTGEQ, tTLT, tTGT, tEquals, tConcatenate, tColon, tDot, tComma, tHash, tNot, tCNot, tAnd, tCAnd, tOr, tCOr), (tFunction, tLocal, tIf, tThen, tElseif, tElse, tFor, tIn, tDo, tWhile, tUntil, tRepeat, tContinue, tBreak, tReturn, tEnd, tGoto), (tLRound, tRRound, tLCurly, tRCurly, tLSquare, tRSquare), (tLabel, tIdentifier)) = fold
+foldToken ((tWhitespace, tDashComment, tDashBlockComment, tSlashComment, tSlashBlockComment, tSemicolon), (tTNumber, tDQString, tSQString, tMLString, tTTrue, tTFalse, tNil, tVarArg), (tPlus, tMinus, tMultiply, tDivide, tModulus, tPower, tTEq, tTNEq, tTCNEq, tTLEQ, tTGEQ, tTLT, tTGT, tEquals, tConcatenate, tColon, tDot, tComma, tHash, tNot, tCNot, tAnd, tCAnd, tOr, tCOr), (tFunction, tLocal, tIf, tThen, tElseif, tElse, tFor, tIn, tDo, tWhile, tUntil, tRepeat, tContinue, tBreak, tReturn, tEnd, tGoto), (tLRound, tRRound, tLCurly, tRCurly, tLSquare, tRSquare), (tLabel, tIdentifier)) = fold
     where
+        fold (Whitespace str) = tWhitespace str
         fold (DashComment str) = tDashComment str
         fold (DashBlockComment depth str) = tDashBlockComment depth str
         fold (SlashComment str) = tSlashComment str
@@ -253,6 +188,7 @@ foldToken ((tDashComment, tDashBlockComment, tSlashComment, tSlashBlockComment, 
 -- | Simple show instance
 instance Show Token where
     show = foldToken ((
+        id,
         \s -> "--" ++ s, -- DashComment
         \d s -> let n = replicate d '=' in "--[" ++ n ++ '[' : s ++ ']' : n ++ "]", -- DashBlockComment
         \s -> "//" ++ s, -- SlashComment
@@ -330,19 +266,24 @@ instance Show Token where
         )
 
 -- | Whether an mtoken is a comment
+isWhitespace :: MToken -> Bool
+isWhitespace = mFold ((const True,const False,\_ _ -> False,const False,const False,False),(const False,const False,const False,const False,False,False,False,False),(False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False),(False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False),(False,False,False,False,False,False),(const False,const False))
+
+-- | Whether an mtoken is a comment
 isComment :: MToken -> Bool
-isComment = mFold ((const True,\_ _ -> True,const True,const True,False),(const False,const False,const False,const False,False,False,False,False),(False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False),(False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False),(False,False,False,False,False,False),(const False,const False))
+isComment = mFold ((const False,const True,\_ _ -> True,const True,const True,False),(const False,const False,const False,const False,False,False,False,False),(False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False),(False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False),(False,False,False,False,False,False),(const False,const False))
 
 -- | Split the tokens by comments and other tokens
 splitComments :: [MToken] -> ([MToken], [MToken])
 splitComments = partition isComment
 
 tokenLabel :: MToken -> String
-tokenLabel = mFold ((const "",\_ _ -> "",const "",const "",""),(const "",const "",const "",const "","","","",""),("","","","","","","","","","","","","","","","","","","","","","","","",""),("","","","","","","","","","","","","","","","",""),("","","","","",""),(id, id))
+tokenLabel = mFold ((const "", const "",\_ _ -> "",const "",const "",""),(const "",const "",const "",const "","","","",""),("","","","","","","","","","","","","","","","","","","","","","","","",""),("","","","","","","","","","","","","","","","",""),("","","","","",""),(id, id))
 
 -- | The size of a token in characters
 tokenSize :: Token -> Int
 tokenSize = foldToken ((
+    length, -- whitespace
     (+2) . length, -- DashComment
     \d s -> 6 + length s + 2 * d, -- DashBlockComment
     (+2) . length, -- SlashComment

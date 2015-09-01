@@ -40,6 +40,7 @@ import qualified Data.Map as M
 import Data.Graph.Inductive.Graph
 import Data.Graph.Inductive.PatriciaTree
 import qualified GLua.AG.PrettyPrint as PP
+import GLua.AG.Token
 import Debug.Trace
 }
 include "../../GLua/AG/AST.ag"
@@ -341,10 +342,6 @@ sem MStat
 
 
 sem Stat
-    | ASemicolon
-        loc.firstNumber         = @lhs.number
-        loc.lastNumbers         = []
-
     | Def
         lhs.number              = @vars.number
         vars.number             = @lhs.number + 1

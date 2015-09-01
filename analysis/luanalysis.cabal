@@ -18,7 +18,7 @@ cabal-version:       >=1.10
 
 executable gluanalysis
   main-is:             Main.hs
-  other-modules:       GLua.AG.AST, GLua.AG.PrettyPrint, GLuanalysis.AG.ControlFlow, GLuanalysis.AG.LiveVariables
+  other-modules:       GLua.AG.AST, GLua.AG.PrettyPrint, GLua.AG.Token, GLuanalysis.AG.ControlFlow, GLuanalysis.AG.LiveVariables
   -- other-extensions:
   build-depends:       base, uuagc, uuagc-cabal, uu-parsinglib, pretty, ListLike, fgl, filepath, containers
   hs-source-dirs:      src

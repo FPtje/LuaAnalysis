@@ -4,12 +4,14 @@ imports
 {
 import Text.ParserCombinators.UU.BasicInstances
 import GLua.TokenTypes
+import GLua.AG.Token
 }
 
 type MStatList = [MStat]
 type MExprList = [MExpr]
 type FieldList = [Field]
-type Declaration = (PrefixExp, MExpr)
+type MaybeMExpr = maybe MExpr
+type Declaration = (PrefixExp, MaybeMExpr)
 type VarsList  = [Declaration]
 type ExprSuffixList = [PFExprSuffix]
 type ElseIf    = (MExpr, Block)
@@ -26,9 +28,7 @@ data Block        | Block  stats :: MStatList    ret :: AReturn
 data MStat        | MStat    pos :: LineColPos  stat :: Stat
 
 -- Statement
-data Stat         -- ;
-                  | ASemicolon
-                  -- a, b, c = ...
+data Stat         -- a, b, c = ...
                   | Def      vars :: VarsList
                   -- local a,b,c, ... = ...
                   | LocDef   vars :: VarsList
@@ -104,21 +104,22 @@ data Field        | ExprField          key   :: MExpr  value        :: MExpr
 
 
 -- Binary operators
-data BinOp        | APlus
+data BinOp
+                  | AOr
+                  | AAnd
+                  | ALT
+                  | AGT
+                  | ALEQ
+                  | AGEQ
+                  | ANEq
+                  | AEq
+                  | AConcatenate
+                  | APlus
                   | BinMinus
                   | AMultiply
                   | ADivide
                   | AModulus
                   | APower
-                  | AConcatenate
-                  | ALT
-                  | ALEQ
-                  | AGT
-                  | AGEQ
-                  | AEq
-                  | ANEq
-                  | AAnd
-                  | AOr
 
 -- Unary operators
 data UnOp         | UnMinus
@@ -137,19 +138,19 @@ deriving MExpr : Show
 deriving Expr : Show
 deriving Args : Show
 deriving Field : Show
-deriving BinOp : Show
+deriving BinOp : Show, Eq, Ord
 deriving UnOp : Show
 
 
 set StatementStuff  = Block MStatList MStat Stat AReturn
 set IfStuff         = ElseIf ElseIfList Else
-set ExprStuff       = PrefixExp PFExprSuffix MExpr Expr MExprList ExprSuffixList
+set ExprStuff       = PrefixExp PFExprSuffix MaybeMExpr MExpr Expr MExprList ExprSuffixList
 set VarStuff        = Args Field FieldList Declaration VarsList
-set AllStuff        = MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp
+set AllStuff        = MStatList MExprList FieldList Declaration MaybeMExpr VarsList ExprSuffixList ElseIf ElseIfList Else AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp
 -- Semantics
 {-
 
-attr MStatList MExprList FieldList Declaration VarsList ExprSuffixList ElseIf ElseIfList Else AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp
+attr MStatList MExprList FieldList Declaration MaybeMExpr VarsList ExprSuffixList ElseIf ElseIfList Else AST Block MStat Stat AReturn FuncName PrefixExp PFExprSuffix MExpr Expr Args Field BinOp UnOp
 
 sem AST
     | AST

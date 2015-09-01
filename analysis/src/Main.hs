@@ -21,6 +21,7 @@ import MonotoneFramework
 import qualified Reachable as R
 import qualified LiveVariables as LV
 import SignAnalysis
+import GLua.AG.Token
 
 main :: IO ()
 main = do

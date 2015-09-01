@@ -39,6 +39,7 @@ import GLua.AG.AST
 import qualified Data.Map as M
 import Data.Maybe
 import GLua.TokenTypes
+import GLua.AG.Token
 }
 include "../../GLua/AG/AST.ag"
 
@@ -146,7 +147,6 @@ sem MStat
     | MStat
 
 sem Stat
-    | ASemicolon
     | Def
         lhs.kill                = @vars.kill
         lhs.gen                 = @vars.gen
